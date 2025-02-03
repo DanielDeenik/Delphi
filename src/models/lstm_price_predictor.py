@@ -4,15 +4,19 @@ from typing import Dict, List, Tuple
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestRegressor
 from datetime import datetime, timedelta
+import tensorflow as tf
 
 class LSTMPricePredictor:
-    """Price prediction model using Random Forest instead of LSTM"""
+    """Price prediction model using LSTM instead of Random Forest"""
 
     def __init__(self, sequence_length: int = 20):
         self.sequence_length = sequence_length
         self.price_scaler = MinMaxScaler()
         self.volume_scaler = MinMaxScaler()
-        self.model = RandomForestRegressor(n_estimators=100, random_state=42)
+        self.model = tf.keras.models.Sequential([
+            tf.keras.layers.LSTM(50, activation='relu', input_shape=(self.sequence_length, 6)),
+            tf.keras.layers.Dense(1)
+        ])
 
     def prepare_data(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
         """Prepare data for model with proper validation and cleaning"""
@@ -56,19 +60,60 @@ class LSTMPricePredictor:
 
         X, y = [], []
         for i in range(len(features) - self.sequence_length):
-            X.append(features[i:(i + self.sequence_length)].flatten())  # Flatten for Random Forest
+            X.append(features[i:(i + self.sequence_length)])  # Use sequence length
             y.append(features[i + self.sequence_length, 0])  # Predict next close price
+
 
         return np.array(X), np.array(y)
 
     def train(self, df: pd.DataFrame, epochs: int = 50, batch_size: int = 32):
-        """Train the model with error handling"""
+        """Train the model with error handling and numerical stability checks"""
         try:
             X, y = self.prepare_data(df)
+
+            # Add numerical stability checks
+            if np.any(np.isnan(X)) or np.any(np.isnan(y)):
+                raise ValueError("NaN values detected in training data")
+
             if len(X) > 0:
-                self.model.fit(X, y)
+                # Use gradient clipping to prevent exploding gradients
+                optimizer = tf.keras.optimizers.Adam(
+                    learning_rate=0.001,
+                    clipnorm=1.0,
+                    clipvalue=0.5
+                )
+                self.model.compile(
+                    optimizer=optimizer,
+                    loss='huber',  # More robust to outliers than MSE
+                    metrics=['mae']
+                )
+
+                # Add early stopping with more patience
+                early_stopping = tf.keras.callbacks.EarlyStopping(
+                    monitor='val_loss',
+                    patience=10,
+                    restore_best_weights=True
+                )
+
+                # Add learning rate reduction on plateau
+                reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(
+                    monitor='val_loss',
+                    factor=0.2,
+                    patience=5,
+                    min_lr=0.0001
+                )
+
+                self.model.fit(
+                    X, y,
+                    epochs=epochs,
+                    batch_size=batch_size,
+                    validation_split=0.2,
+                    callbacks=[early_stopping, reduce_lr],
+                    verbose=1
+                )
             else:
                 raise ValueError("Not enough data points after preparation")
+
         except Exception as e:
             import logging
             logging.error(f"Error during model training: {str(e)}")
@@ -91,7 +136,7 @@ class LSTMPricePredictor:
         last_sequence = X[-1:]
 
         # Make prediction
-        predicted_scaled = self.model.predict(last_sequence)[0]
+        predicted_scaled = self.model.predict(last_sequence)[0, 0]
 
         # Inverse transform prediction
         predicted_features = np.zeros((1, 3))

@@ -1,0 +1,90 @@
+### **AI Developer Prompt: William J. O’Neil's Volume-Based Trading Rules for Accumulation & Distribution**
+
+**Objective:**  
+Build an AI-driven volume analysis module based on William J. O’Neil’s **accumulation and distribution** principles to detect institutional buying and selling activity. This module will identify **high-probability trading signals** using **quantitative rules**, integrate with **real-time market data APIs**, and support **historical backtesting**.
+
+---
+
+## **🛠️ Task Breakdown**
+
+### **1️⃣ Volume-Based Accumulation & Distribution Analysis**
+🔹 Implement **rules to detect institutional buying and selling pressure** based on price and volume relationships.  
+🔹 Use **SQL, Python (Pandas, NumPy), and AI models** to classify volume-based market behavior.
+
+**💡 Requirements:**
+- Identify **Accumulation Days** (Stock closes higher on **120%+ average volume**).
+- Identify **Distribution Days** (Stock closes lower on **120%+ average volume**).
+- Track **clusters of distribution days** to detect market weakness.
+- Implement **real-time volume alerts** for potential trend shifts.
+
+---
+
+### **2️⃣ Volume Climax Top & Panic Selling**
+🔹 Identify **exhaustion tops** (price surges **10%+ in 3 days** on extreme volume).  
+🔹 Detect **panic sell-offs** (price drops **10%+ in 3 days** on heavy volume).  
+
+**💡 Implementation:**  
+- Compute **3-day rolling price percentage change**.
+- Flag **high-volume tops** and **capitulation events**.
+- Store results in **Google Cloud Storage (GCS) and BigQuery** for analysis.
+
+---
+
+### **3️⃣ Weak Rallies & Volume Divergence**
+🔹 Identify **false breakouts** where price rises on **declining volume**.  
+🔹 Detect **weak sell-offs** where price drops on **low volume**.  
+
+**💡 Implementation:**  
+- Compare **today’s volume vs. prior day’s volume**.
+- Classify volume signals as **“Weak Rally” or “Weak Sell-off”**.
+- Integrate with **FastAPI for real-time signal updates**.
+
+---
+
+### **4️⃣ High-Volume Breakouts & Failed Breakouts**
+🔹 Detect **valid breakouts** where price moves **above resistance on 150%+ volume**.  
+🔹 Identify **failed breakouts** where price **closes below breakout level** after an initial spike.  
+
+**💡 Implementation:**  
+- Compute **20-day rolling high** as breakout threshold.
+- Flag **valid vs. failed breakouts** using volume confirmation.
+- Send alerts via **WebSockets & AI-driven trading bots**.
+
+---
+
+### **5️⃣ Market Trend Analysis Using Volume**
+🔹 Track **Accumulation Days vs. Distribution Days over a 50-day window** to classify market regime.  
+
+**💡 Implementation:**  
+- Compute a **rolling 50-day accumulation/distribution ratio**.
+- If **Accumulation Days > Distribution Days → Bullish**.
+- If **Distribution Days > Accumulation Days → Bearish**.
+- Store results in **Google BigQuery for ML-driven trend analysis**.
+
+---
+
+## **⚙️ Implementation Strategy**
+### **🔹 Data Pipeline**
+1. **Fetch market data** from Alpha Vantage / Polygon.io APIs.  
+2. **Store raw data** in **Google Cloud Storage (GCS) and BigQuery**.  
+3. **Process volume signals** using **SQL + Python (Pandas, NumPy)**.  
+4. **Run AI models (HMMs, LSTMs) to refine signals**.  
+5. **Expose results via FastAPI & WebSockets for real-time trading bots**.  
+
+---
+
+## **🚀 Next Steps**
+1️⃣ **Develop SQL & Python scripts** to calculate volume-based trading signals.  
+2️⃣ **Deploy volume insights API using FastAPI + WebSockets**.  
+3️⃣ **Optimize AI-based volume classification with ML models**.  
+4️⃣ **Backtest strategies using historical market data**.  
+
+---
+
+### **Final Deliverables**
+✅ AI-powered **volume anomaly detection** module.  
+✅ FastAPI-based **real-time trading signals API**.  
+✅ Google Cloud-based **BigQuery volume insights dashboard**.  
+✅ ML-driven **probabilistic market regime detection model**.  
+
+Would you like **Python code implementations** for specific rules or a **full AI development plan**? 🚀
