@@ -31,7 +31,10 @@ class SchedulerService:
         logger.info(f"Initialized with {len(self.available_stocks)} stocks to monitor")
 
     async def run_nightly_processing(self) -> Dict:
-        """Run the nightly processing routine with parallel processing"""
+        """Run the nightly processing routine with optimized batch processing"""
+        # Configure TensorFlow for optimal cloud performance
+        from src.utils.tf_config import configure_tensorflow
+        configure_tensorflow()
         logger.info("Starting nightly processing routine")
         processing_results = {
             'timestamp': datetime.now().isoformat(),
