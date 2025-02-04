@@ -22,7 +22,49 @@ An advanced Retrieval-Augmented Generation (RAG) AI-powered financial intelligen
 - Pandas & NumPy
 - Scikit-learn
 
-## Installation
+## Cloud Deployment Setup
+
+### 1. GitHub Integration
+1. Create a new GitHub repository
+2. Initialize git and push the code:
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/yourusername/financial-intelligence-platform.git
+git push -u origin main
+```
+
+### 2. Cursor IDE Setup
+1. Install Cursor IDE from https://cursor.sh
+2. Open Cursor and select "Clone Repository"
+3. Enter your GitHub repository URL
+4. Configure Cursor's AI features for enhanced development
+
+### 3. Google Cloud Setup (Cost-Optimized)
+1. Install Google Cloud SDK
+2. Initialize Google Cloud project:
+```bash
+gcloud init
+gcloud app create
+```
+3. Set up authentication:
+```bash
+gcloud auth login
+gcloud auth application-default login
+```
+4. Deploy the application:
+```bash
+./deploy.sh
+```
+
+Note: The app is configured for minimal cost using:
+- F1 instance class (shared CPU)
+- Conservative auto-scaling (1-2 instances)
+- Efficient memory utilization
+- Minimal concurrent requests
+
+## Local Development
 
 1. Clone the repository:
 ```bash
