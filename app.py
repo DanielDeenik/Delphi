@@ -33,30 +33,30 @@ if 'available_symbols' not in st.session_state:
         # This is a mock list since Alpha Vantage doesn't provide a direct endpoint for all symbols
         st.session_state.available_symbols = {
             "US Stocks": {
-                "AAPL": "Apple Inc.",
-                "MSFT": "Microsoft Corporation",
-                "GOOGL": "Alphabet Inc.",
-                "AMZN": "Amazon.com Inc.",
-                "NVDA": "NVIDIA Corporation",
-                "META": "Meta Platforms Inc.",
-                "TSLA": "Tesla Inc.",
-                "JPM": "JPMorgan Chase & Co.",
-                "BAC": "Bank of America Corp",
-                "WMT": "Walmart Inc.",
+                "AAPL": {"name": "Apple Inc.", "currency": "USD"},
+                "MSFT": {"name": "Microsoft Corporation", "currency": "USD"},
+                "GOOGL": {"name": "Alphabet Inc.", "currency": "USD"},
+                "AMZN": {"name": "Amazon.com Inc.", "currency": "USD"},
+                "NVDA": {"name": "NVIDIA Corporation", "currency": "USD"},
+                "META": {"name": "Meta Platforms Inc.", "currency": "USD"},
+                "TSLA": {"name": "Tesla Inc.", "currency": "USD"},
+                "JPM": {"name": "JPMorgan Chase & Co.", "currency": "USD"},
+                "BAC": {"name": "Bank of America Corp", "currency": "USD"},
+                "WMT": {"name": "Walmart Inc.", "currency": "USD"},
             },
             "International": {
-                "BVI.PA": "Bureau Veritas SA",
-                "PRX.AS": "Prosus NV",
-                "SAP.DE": "SAP SE",
-                "SONY": "Sony Group Corporation",
-                "TCEHY": "Tencent Holdings",
+                "BVI.PA": {"name": "Bureau Veritas SA", "currency": "EUR"},
+                "PRX.AS": {"name": "Prosus NV", "currency": "EUR"},
+                "SAP.DE": {"name": "SAP SE", "currency": "EUR"},
+                "SONY": {"name": "Sony Group Corporation", "currency": "JPY"},
+                "TCEHY": {"name": "Tencent Holdings", "currency": "HKD"},
             },
             "Crypto": {
-                "BTC-USD": "Bitcoin USD",
-                "ETH-USD": "Ethereum USD",
-                "HUT": "Hut 8 Mining Corp",
-                "RIOT": "Riot Platforms Inc.",
-                "COIN": "Coinbase Global Inc.",
+                "BTC-USD": {"name": "Bitcoin USD", "currency": "USD"},
+                "ETH-USD": {"name": "Ethereum USD", "currency": "USD"},
+                "HUT": {"name": "Hut 8 Mining Corp", "currency": "USD"},
+                "RIOT": {"name": "Riot Platforms Inc.", "currency": "USD"},
+                "COIN": {"name": "Coinbase Global Inc.", "currency": "USD"},
             }
         }
     except Exception as e:
@@ -66,11 +66,30 @@ if 'available_symbols' not in st.session_state:
 # Initialize watchlist if not present
 if 'watchlist' not in st.session_state:
     st.session_state.watchlist = {
-        "Bank of America Corp": "BAC",
-        "Bureau Veritas SA": "BVI.PA",
-        "Hut 8 Mining Corp": "HUT",
-        "Prosus NV": "PRX.AS"
+        "Bank of America Corp": {"symbol": "BAC", "currency": "USD"},
+        "Bureau Veritas SA": {"symbol": "BVI.PA", "currency": "EUR"},
+        "Hut 8 Mining Corp": {"symbol": "HUT", "currency": "USD"},
+        "Prosus NV": {"symbol": "PRX.AS", "currency": "EUR"}
     }
+
+# Update the currency symbols mapping
+CURRENCY_SYMBOLS = {
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "JPY": "¥",
+    "HKD": "HK$",
+    "CNY": "¥",
+    "AUD": "A$",
+    "CAD": "C$"
+}
+
+# Helper function to format price with currency
+def format_price(price, currency):
+    if isinstance(price, str) and price == "N/A":
+        return "N/A"
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, currency)
+    return f"{currency_symbol}{price:.2f}"
 
 try:
     # Initialize services
@@ -98,7 +117,7 @@ try:
 
         # Create a dictionary of all symbols in selected category
         category_symbols = st.session_state.available_symbols[category]
-        symbol_names = [f"{symbol} - {name}" for symbol, name in category_symbols.items()]
+        symbol_names = [f"{symbol} - {name['name']}" for symbol, name in category_symbols.items()]
 
         # Symbol selection with search
         selected_symbol = st.selectbox(
@@ -110,9 +129,9 @@ try:
         if st.button("Add to Watchlist"):
             if selected_symbol:
                 symbol = selected_symbol.split(" - ")[0]
-                name = category_symbols[symbol]
-                if symbol not in st.session_state.watchlist.values():
-                    st.session_state.watchlist[name] = symbol
+                name = category_symbols[symbol]['name']
+                if name not in st.session_state.watchlist:
+                    st.session_state.watchlist[name] = {"symbol": symbol, "currency": category_symbols[symbol]['currency']}
                     st.success(f"Added {name} ({symbol}) to watchlist")
                 else:
                     st.warning(f"{name} is already in your watchlist")
@@ -156,9 +175,9 @@ try:
             filtered_symbols = {
                 symbol: name for symbol, name in category_symbols.items()
                 if (search_query.lower() in symbol.lower() or
-                    search_query.lower() in name.lower())
+                    search_query.lower() in name['name'].lower())
             }
-            symbol_names = [f"{symbol} - {name}" for symbol, name in filtered_symbols.items()]
+            symbol_names = [f"{symbol} - {name['name']}" for symbol, name in filtered_symbols.items()]
 
             selected_symbol = st.selectbox(
                 "Select Asset",
@@ -171,9 +190,9 @@ try:
                 if st.button("Add"):
                     if selected_symbol:
                         symbol = selected_symbol.split(" - ")[0]
-                        name = filtered_symbols[symbol]
-                        if symbol not in st.session_state.watchlist.values():
-                            st.session_state.watchlist[name] = symbol
+                        name = filtered_symbols[symbol]['name']
+                        if name not in st.session_state.watchlist:
+                            st.session_state.watchlist[name] = {"symbol": symbol, "currency": filtered_symbols[symbol]['currency']}
                             st.success(f"Added {name} ({symbol}) to watchlist")
                         else:
                             st.warning(f"{name} is already in your watchlist")
@@ -186,13 +205,17 @@ try:
             watchlist_data = []
 
             # Process each asset in watchlist
-            for company_name, symbol in st.session_state.watchlist.items():
+            for company_name, details in st.session_state.watchlist.items():
                 try:
+                    symbol = details["symbol"]
+                    currency = details["currency"]
+
                     # Fetch market data
                     data = alpha_vantage.fetch_daily_adjusted(symbol)
                     if data is not None:
                         # Calculate metrics
                         latest_data = data.iloc[-1]
+                        current_price = latest_data['Close']
 
                         # Train models if needed
                         trading_service.train_models(data)
@@ -218,7 +241,6 @@ try:
                         })
 
                         # Calculate price change
-                        current_price = latest_data['Close']
                         price_change = ((price_forecast['predicted_price'] - current_price) / current_price) * 100
 
                         # Get stop recommendation
@@ -232,15 +254,15 @@ try:
                         asset_data = {
                             "Asset": company_name,
                             "Symbol": symbol,
-                            "Price": f"${current_price:.2f}",
+                            "Price": format_price(current_price, currency),
                             "Volume": f"{latest_data['Volume']:,.0f}",
                             "Volume Trend": volume_analysis.get('recent_pattern', {}).get('type', 'NEUTRAL'),
                             "Market Regime": regime_info['regime_type'],
                             "Regime Confidence": f"{regime_info['regime_probability']:.1%}",
-                            "Predicted Price": f"${price_forecast['predicted_price']:.2f}",
+                            "Predicted Price": format_price(price_forecast['predicted_price'], currency),
                             "Price Change": f"{price_change:+.1f}%",
                             "Forecast Confidence": f"{price_forecast['confidence_score']:.1%}",
-                            "Stop Loss": f"${stop_info['suggested_stop_price']:.2f}",
+                            "Stop Loss": format_price(stop_info['suggested_stop_price'], currency),
                             "Stop Distance": f"{stop_info['optimal_distance_percent']:.1%}",
                             "Trading Signal": entry_signals['signal'] if entry_signals and 'signal' in entry_signals else 'NEUTRAL',
                             "Signal Confidence": f"{entry_signals.get('confidence', 0.5):.1%}" if entry_signals else "0.0%",
@@ -324,10 +346,11 @@ try:
         selected_stock = st.selectbox(
             "Select Asset for Detailed Analysis",
             list(st.session_state.watchlist.keys()),
-            format_func=lambda x: f"{x} ({st.session_state.watchlist[x]})"
+            format_func=lambda x: f"{x} ({st.session_state.watchlist[x]['symbol']})"
         )
 
-        symbol = st.session_state.watchlist[selected_stock]
+        symbol = st.session_state.watchlist[selected_stock]['symbol']
+        currency = st.session_state.watchlist[selected_stock]['currency']
 
         timeframe = st.selectbox(
             "Select Timeframe",
@@ -430,7 +453,7 @@ try:
             with col1:
                 st.metric(
                     "Predicted Price",
-                    f"${price_forecast['predicted_price']:.2f}",
+                    format_price(price_forecast['predicted_price'], currency),
                     f"{price_change:.1%}",
                     delta_color="normal"
                 )
@@ -451,7 +474,7 @@ try:
             with col1:
                 st.metric(
                     "Suggested Stop Price",
-                    f"${stop_info['suggested_stop_price']:.2f}",
+                    format_price(stop_info['suggested_stop_price'], currency),
                     f"{stop_info['optimal_distance_percent']:.1%} from current price"
                 )
             with col2:
@@ -469,7 +492,7 @@ try:
                         <h4>Entry Signal: {entry_signals['signal']}</h4>
                         <b>Confidence:</b> {entry_signals['confidence']:.1%}<br>
                         <b>Expected Return:</b> {entry_signals['expected_return']:.1%}<br>
-                        <b>Suggested Stop:</b> ${entry_signals['suggested_stop']:.2f}<br>
+                        <b>Suggested Stop:</b> {format_price(entry_signals['suggested_stop'], currency)}<br>
                         <b>Reasoning:</b><br>
                         {'<br>'.join(f'• {reason}' for reason in entry_signals['reasoning'])}
                     </div>
