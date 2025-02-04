@@ -155,7 +155,7 @@ try:
             category_symbols = st.session_state.available_symbols[category]
             filtered_symbols = {
                 symbol: name for symbol, name in category_symbols.items()
-                if (search_query.lower() in symbol.lower() or 
+                if (search_query.lower() in symbol.lower() or
                     search_query.lower() in name.lower())
             }
             symbol_names = [f"{symbol} - {name}" for symbol, name in filtered_symbols.items()]
@@ -242,13 +242,30 @@ try:
                             "Forecast Confidence": f"{price_forecast['confidence_score']:.1%}",
                             "Stop Loss": f"${stop_info['suggested_stop_price']:.2f}",
                             "Stop Distance": f"{stop_info['optimal_distance_percent']:.1%}",
-                            "Trading Signal": entry_signals.get('signal', 'NEUTRAL'),
-                            "Signal Confidence": f"{entry_signals.get('confidence', 0.5):.1%}",
+                            "Trading Signal": entry_signals['signal'] if entry_signals and 'signal' in entry_signals else 'NEUTRAL',
+                            "Signal Confidence": f"{entry_signals.get('confidence', 0.5):.1%}" if entry_signals else "0.0%",
                             "Alerts": len(volume_analysis.get('alerts', [])),
                         }
                         watchlist_data.append(asset_data)
                 except Exception as e:
                     st.error(f"Error processing {symbol}: {str(e)}")
+                    watchlist_data.append({
+                        "Asset": company_name,
+                        "Symbol": symbol,
+                        "Price": "N/A",
+                        "Volume": "N/A",
+                        "Volume Trend": "ERROR",
+                        "Market Regime": "ERROR",
+                        "Regime Confidence": "0.0%",
+                        "Predicted Price": "N/A",
+                        "Price Change": "0.0%",
+                        "Forecast Confidence": "0.0%",
+                        "Stop Loss": "N/A",
+                        "Stop Distance": "0.0%",
+                        "Trading Signal": "ERROR",
+                        "Signal Confidence": "0.0%",
+                        "Alerts": 0,
+                    })
 
             # Convert to DataFrame for display
             if watchlist_data:
@@ -263,7 +280,7 @@ try:
 
                 # Apply sorting
                 watchlist_df = watchlist_df.sort_values(
-                    by=sort_column, 
+                    by=sort_column,
                     ascending=(sort_order == "Ascending")
                 )
 
@@ -469,8 +486,8 @@ try:
             ml_insights = ml_analyzer.detect_volume_patterns(data)
 
             # Create main chart
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                                vertical_spacing=0.03, 
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                vertical_spacing=0.03,
                                 row_heights=[0.7, 0.3])
 
             # Candlestick chart
@@ -638,7 +655,7 @@ try:
 
             # Pattern Search
             st.subheader("🔍 Pattern Search")
-            search_query = st.text_input("Search for similar volume patterns", 
+            search_query = st.text_input("Search for similar volume patterns",
                                         placeholder="e.g., 'high volume breakout with positive price action'")
             if search_query:
                 similar_patterns = rag_analyzer.find_similar_patterns(search_query)
@@ -785,7 +802,7 @@ try:
                 })
 
                 fig = go.Figure(data=[
-                    go.Bar(
+                                        go.Bar(
                         x=source_df['Source'],
                         y=source_df['Sentiment'],
                         marker_color=['#1DA1F2', '#FF4500', '#00A68C']  # Twitter, Reddit, StockTwits colors
