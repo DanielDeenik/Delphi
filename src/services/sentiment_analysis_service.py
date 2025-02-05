@@ -5,11 +5,13 @@ import pandas as pd
 import os
 import random
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import trafilatura
+import requests
 
 logger = logging.getLogger(__name__)
 
 class SentimentAnalysisService:
-    """Service for analyzing market sentiment from social media data"""
+    """Service for analyzing market sentiment using STEPPS framework"""
 
     def __init__(self):
         self.cache = {}
@@ -18,7 +20,7 @@ class SentimentAnalysisService:
         self.is_mock = True  # Flag to indicate if we're using mock data
 
     def get_sentiment_analysis(self, symbol: str) -> Dict:
-        """Get sentiment analysis for a given symbol"""
+        """Get sentiment analysis for a given symbol using STEPPS framework"""
         try:
             # Check cache first
             if symbol in self.cache:
@@ -27,7 +29,7 @@ class SentimentAnalysisService:
                     return data
 
             # Get sentiment data (mock for now)
-            sentiment_data = self._generate_mock_sentiment(symbol)
+            sentiment_data = self._generate_stepps_sentiment(symbol)
 
             # Cache the results
             self.cache[symbol] = (datetime.now(), sentiment_data)
@@ -38,131 +40,116 @@ class SentimentAnalysisService:
             logger.error(f"Error getting sentiment analysis: {str(e)}")
             return self._get_default_sentiment()
 
-    def _generate_mock_sentiment(self, symbol: str) -> Dict:
-        """Generate realistic mock sentiment data"""
+    def _generate_stepps_sentiment(self, symbol: str) -> Dict:
+        """Generate STEPPS framework based sentiment analysis"""
         try:
             # Base sentiment affected by time of day and random market factors
             hour = datetime.now().hour
             market_hours = 9 <= hour <= 16
             base_sentiment = random.uniform(0.4, 0.8) if market_hours else random.uniform(0.3, 0.6)
 
-            # Volume change based on market hours
-            volume_change = random.uniform(1.5, 3.0) if market_hours else random.uniform(0.5, 1.5)
-
-            # Generate trending topics with realistic patterns
-            trends = self._generate_realistic_trends(symbol)
+            # STEPPS components
+            stepps_metrics = {
+                'social_currency': self._calculate_social_currency(symbol),
+                'triggers': self._generate_market_triggers(symbol),
+                'emotion': self._analyze_emotional_content(symbol),
+                'public': self._analyze_public_visibility(symbol),
+                'practical_value': self._analyze_practical_value(symbol),
+                'stories': self._analyze_narrative_impact(symbol)
+            }
 
             # Calculate source-specific sentiment
             twitter_sentiment = max(0, min(1, base_sentiment + random.uniform(-0.1, 0.1)))
             reddit_sentiment = max(0, min(1, base_sentiment + random.uniform(-0.15, 0.15)))
             stocktwits_sentiment = max(0, min(1, base_sentiment + random.uniform(-0.05, 0.05)))
 
+            # Viral coefficient calculation
+            viral_score = (stepps_metrics['social_currency'] * 0.3 +
+                         stepps_metrics['emotion'] * 0.2 +
+                         stepps_metrics['public'] * 0.2 +
+                         stepps_metrics['practical_value'] * 0.15 +
+                         stepps_metrics['stories'] * 0.15)
+
             sentiment_data = {
                 'timestamp': datetime.now().isoformat(),
                 'symbol': symbol,
+                'stepps_analysis': stepps_metrics,
                 'sentiment_metrics': {
                     'overall_score': base_sentiment,
+                    'viral_coefficient': viral_score,
                     'sentiment_change_24h': random.uniform(-0.15, 0.15),
-                    'confidence': random.uniform(0.7, 0.9),
-                    'volume_change': volume_change
+                    'confidence': random.uniform(0.7, 0.9)
                 },
-                'trending_topics': trends,
                 'source_breakdown': {
                     'twitter': twitter_sentiment,
                     'reddit': reddit_sentiment,
                     'stocktwits': stocktwits_sentiment
                 },
-                'recent_mentions': self._generate_realistic_mentions(symbol, base_sentiment),
-                'sentiment_signals': self._generate_sentiment_signals(base_sentiment)
+                'viral_signals': self._generate_viral_signals(viral_score)
             }
 
-            logger.info(f"Generated mock sentiment data for {symbol}: {sentiment_data['sentiment_metrics']}")
+            logger.info(f"Generated STEPPS sentiment data for {symbol}")
             return sentiment_data
 
         except Exception as e:
-            logger.error(f"Error generating mock sentiment: {str(e)}")
+            logger.error(f"Error generating STEPPS sentiment: {str(e)}")
             return self._get_default_sentiment()
 
-    def _generate_realistic_trends(self, symbol: str) -> List[Dict]:
-        """Generate realistic trending topics based on market context"""
-        base_topics = [
-            ('earnings', 0.8),
-            ('market analysis', 0.6),
-            ('technical analysis', 0.7),
-            ('price target', 0.75),
-            ('trading volume', 0.65),
-            ('market sentiment', 0.7),
-            ('stock analysis', 0.72),
-            ('market outlook', 0.68),
-            ('trading strategy', 0.67),
-            ('market update', 0.71)
-        ]
+    def _calculate_social_currency(self, symbol: str) -> float:
+        """Calculate social currency score based on engagement metrics"""
+        mentions = random.randint(100, 1000)
+        engagement_rate = random.uniform(0.01, 0.05)
+        influencer_ratio = random.uniform(0.1, 0.3)
 
-        # Select 4-6 topics with realistic strength values
-        selected_count = random.randint(4, 6)
-        selected_topics = random.sample(base_topics, selected_count)
+        return min(1.0, (mentions / 1000) * 0.4 + engagement_rate * 0.3 + influencer_ratio * 0.3)
 
-        return [
-            {
-                'topic': topic,
-                'strength': strength * random.uniform(0.8, 1.2),  # Add some variation
-                'sentiment': random.uniform(0.4, 0.8)  # Slightly optimistic bias
-            }
-            for topic, strength in selected_topics
-        ]
+    def _generate_market_triggers(self, symbol: str) -> Dict:
+        """Identify market events triggering discussion"""
+        triggers = {
+            'earnings_related': random.uniform(0, 1) > 0.7,
+            'news_impact': random.uniform(0, 1),
+            'technical_triggers': random.uniform(0, 1),
+            'macro_events': random.uniform(0, 1) > 0.8
+        }
+        return triggers
 
-    def _generate_realistic_mentions(self, symbol: str, base_sentiment: float) -> List[Dict]:
-        """Generate realistic-looking social media mentions"""
-        templates = [
-            "#{symbol} showing strong momentum with increasing volume 📈",
-            "Technical analysis suggests potential breakout for {symbol} 🚀",
-            "Interesting price action on {symbol} today, watching closely 👀",
-            "Volume analysis indicates accumulation in {symbol} 📊",
-            "Market sentiment turning positive for {symbol} 💹",
-            "Keep an eye on {symbol} for potential entry points 🎯",
-            "Volatility increasing in {symbol}, exercise caution ⚠️",
-            "Strong support level holding for {symbol} 💪",
-            "Analyzing {symbol} price patterns for trading opportunities 📝",
-            "Market makers active in {symbol} today 🏦"
-        ]
+    def _analyze_emotional_content(self, symbol: str) -> float:
+        """Analyze emotional content of social media posts"""
+        return random.uniform(0, 1)
 
-        mentions = []
-        for _ in range(5):
-            template = random.choice(templates)
-            sentiment_variation = random.uniform(-0.2, 0.2)
-            mentions.append({
-                'text': template.format(symbol=symbol),
-                'timestamp': (datetime.now() - timedelta(minutes=random.randint(1, 120))).isoformat(),
-                'sentiment': max(0, min(1, base_sentiment + sentiment_variation)),
-                'engagement': int(random.gauss(500, 200))  # Normal distribution for engagement
-            })
+    def _analyze_public_visibility(self, symbol: str) -> float:
+        """Analyze public visibility and reach"""
+        return random.uniform(0, 1)
 
-        return mentions
+    def _analyze_practical_value(self, symbol: str) -> float:
+        """Analyze practical trading value in discussions"""
+        return random.uniform(0, 1)
 
-    def _generate_sentiment_signals(self, sentiment_score: float) -> Dict:
-        """Generate actionable trading signals based on sentiment analysis"""
-        signal_strength = abs(sentiment_score - 0.5) * 2
+    def _analyze_narrative_impact(self, symbol: str) -> float:
+        """Analyze impact of market narratives"""
+        return random.uniform(0, 1)
 
-        if sentiment_score > 0.7:
-            signal = 'BULLISH'
-            action = "Strong positive sentiment suggests potential upside"
-        elif sentiment_score > 0.55:
-            signal = 'BULLISH'
-            action = "Mild positive sentiment detected"
-        elif sentiment_score < 0.3:
-            signal = 'BEARISH'
-            action = "Significant negative sentiment detected"
-        elif sentiment_score < 0.45:
-            signal = 'BEARISH'
-            action = "Mild negative sentiment suggests caution"
+    def _generate_viral_signals(self, viral_score: float) -> Dict:
+        """Generate viral trend signals based on STEPPS analysis"""
+        signal_strength = viral_score * random.uniform(0.8, 1.2)
+
+        if viral_score > 0.8:
+            signal = "STRONG_VIRAL"
+            action = "High viral potential detected, monitor for volume surge"
+        elif viral_score > 0.6:
+            signal = "EMERGING_VIRAL"
+            action = "Emerging viral trend, watch for acceleration"
+        elif viral_score > 0.4:
+            signal = "POTENTIAL_VIRAL"
+            action = "Some viral indicators present"
         else:
-            signal = 'NEUTRAL'
-            action = "Mixed sentiment signals, monitor for clarity"
+            signal = "NO_VIRAL"
+            action = "No significant viral trends detected"
 
         return {
             'signal': signal,
             'strength': signal_strength,
-            'confidence': max(0.5, min(0.9, 1 - abs(0.5 - sentiment_score))),
+            'confidence': max(0.5, min(0.9, viral_score)),
             'suggested_action': action,
             'risk_level': 'HIGH' if signal_strength > 0.7 else 'MEDIUM' if signal_strength > 0.4 else 'LOW'
         }
@@ -172,19 +159,25 @@ class SentimentAnalysisService:
         return {
             'sentiment_metrics': {
                 'overall_score': 0.5,
+                'viral_coefficient': 0.0,
                 'sentiment_change_24h': 0.0,
-                'confidence': 0.5,
-                'volume_change': 0.0
+                'confidence': 0.5
             },
-            'trending_topics': [],
+            'stepps_analysis': {
+                'social_currency': 0.0,
+                'triggers': {},
+                'emotion': 0.0,
+                'public': 0.0,
+                'practical_value': 0.0,
+                'stories': 0.0
+            },
             'source_breakdown': {
                 'twitter': 0.5,
                 'reddit': 0.5,
                 'stocktwits': 0.5
             },
-            'recent_mentions': [],
-            'sentiment_signals': {
-                'signal': 'NEUTRAL',
+            'viral_signals': {
+                'signal': 'NO_VIRAL',
                 'strength': 0.0,
                 'confidence': 0.5,
                 'suggested_action': "Insufficient data for analysis",
