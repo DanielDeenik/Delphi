@@ -12,6 +12,7 @@ from src.utils.alerts import AlertSystem
 from src.services.trading_signal_service import TradingSignalService
 from src.services.volume_analysis_service import VolumeAnalysisService
 import numpy as np
+import logging # Added for feedback logging
 
 # Page config must be the first Streamlit command
 st.set_page_config(
@@ -116,7 +117,7 @@ try:
     if data is not None and not data.empty:
         # Calculate Z-score for anomaly detection
         data['volume_z_score'] = (data['Volume'] - data['Volume'].rolling(window=20).mean()) / \
-                                data['Volume'].rolling(window=20).std()
+                                 data['Volume'].rolling(window=20).std()
         data['is_anomaly'] = data['volume_z_score'].abs() > 2
 
         # Calculate momentum score
@@ -215,6 +216,21 @@ try:
 
     else:
         st.error("Unable to fetch market data. Please try again later.")
+
+    # Add feedback form at the bottom
+    st.markdown("---")
+    st.subheader("📝 Feedback")
+    feedback = st.text_area("Help us improve! Share your thoughts:", placeholder="Enter your suggestions here...")
+
+    if feedback:
+        if st.button("Submit Feedback"):
+            try:
+                # Store feedback in logs for now since we're the only user
+                logging.info(f"User Feedback: {feedback}")
+                st.success("Thank you for your feedback! It helps us improve.")
+            except Exception as e:
+                st.error("Unable to submit feedback. Please try again.")
+                logging.error(f"Error saving feedback: {str(e)}")
 
 except Exception as e:
     st.error(f"An error occurred: {str(e)}")
