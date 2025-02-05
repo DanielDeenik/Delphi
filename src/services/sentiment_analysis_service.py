@@ -7,6 +7,7 @@ import random
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import trafilatura
 import requests
+from src.models.momentum_predictor import MomentumPredictor
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,10 @@ class SentimentAnalysisService:
         self.cache = {}
         self.cache_timeout = 300  # 5 minutes
         self.sentiment_analyzer = SentimentIntensityAnalyzer()
+        self.momentum_predictor = MomentumPredictor()
         self.is_mock = True  # Flag to indicate if we're using mock data
 
-    def get_sentiment_analysis(self, symbol: str) -> Dict:
+    def get_sentiment_analysis(self, symbol: str, historical_data: pd.DataFrame = None) -> Dict:
         """Get sentiment analysis for a given symbol using STEPPS framework"""
         try:
             # Check cache first
@@ -35,8 +37,24 @@ class SentimentAnalysisService:
                 if datetime.now() - last_update < timedelta(seconds=self.cache_timeout):
                     return data
 
-            # Get sentiment data (mock for now)
+            # Generate STEPPS analysis
             sentiment_data = self._generate_stepps_sentiment(symbol)
+
+            # Add momentum prediction if historical data is available
+            if historical_data is not None:
+                try:
+                    if not self.momentum_predictor.is_trained:
+                        self.momentum_predictor.train(historical_data)
+
+                    trend_sustainability = self.momentum_predictor.analyze_trend_sustainability(
+                        historical_data,
+                        sentiment_data['sentiment_metrics']['overall_score'],
+                        sentiment_data.get('volume_profile', {})
+                    )
+                    sentiment_data['trend_prediction'] = trend_sustainability
+                except Exception as e:
+                    logger.error(f"Error getting momentum prediction: {str(e)}")
+                    sentiment_data['trend_prediction'] = None
 
             # Cache the results
             self.cache[symbol] = (datetime.now(), sentiment_data)
@@ -152,10 +170,10 @@ class SentimentAnalysisService:
 
             # Viral coefficient calculation
             viral_score = (stepps_metrics['social_currency'] * 0.3 +
-                         stepps_metrics['emotion'] * 0.2 +
-                         stepps_metrics['public'] * 0.2 +
-                         stepps_metrics['practical_value'] * 0.15 +
-                         stepps_metrics['stories'] * 0.15)
+                            stepps_metrics['emotion'] * 0.2 +
+                            stepps_metrics['public'] * 0.2 +
+                            stepps_metrics['practical_value'] * 0.15 +
+                            stepps_metrics['stories'] * 0.15)
 
             sentiment_data = {
                 'timestamp': datetime.now().isoformat(),
