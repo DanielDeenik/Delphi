@@ -103,6 +103,43 @@ try:
     alert_system = AlertSystem()
     volume_shift_analyzer = VolumeShiftAnalyzer()
 
+    # Initialize analysis variables
+    ml_insights = {
+        'anomaly_score': 0.0,
+        'anomaly_change': 0.0,
+        'anomalies': [],
+        'volume_profile': 'NEUTRAL',
+        'patterns': [],
+        'recent_pattern': {'type': 'NEUTRAL', 'strength': 0.0, 'confidence': 0.0}
+    }
+
+    volume_shift_analysis = {
+        'latest_metrics': {
+            'rvol': 1.0,
+            'volume_trend': 0.0,
+            'price_volume_correlation': 0.0
+        },
+        'classification': 'NEUTRAL',
+        'buy_sell_ratio': 1.0,
+        'ratio_change': 0.0,
+        'trend_type': 'NEUTRAL',
+        'trend_strength': 0.0,
+        'divergence_score': 0.0,
+        'score_change': 0.0,
+        'feature_importance': {}
+    }
+
+    trading_signals = {
+        'momentum_score': 0.0,
+        'momentum_change': 0.0,
+        'momentum_forecast': [0.0] * 30,
+        'market_regime': {
+            'regime_type': 'NEUTRAL',
+            'regime_probability': 0.5,
+            'regime_strength': 0.5
+        }
+    }
+
     # Sidebar configuration
     with st.sidebar:
         st.title("Oracle of Delphi 🏛️")
@@ -763,7 +800,7 @@ try:
 
                     st.markdown(
                         f"""
-                        <div style='padding: 10px; border-left: 5px solid {severity_color}; background-color: rgba(0,0,0,0.1);'>
+                        <div style='padding: 10px; border-left: 5px solid {severity_color}; background-color: rgba(0,00,0.1);'>
                             🎯 <b>{signal['type']}</b><br>
                             📊 Strength: <span style='color: {severity_color}'>{signal['strength']}</span><br>
                             💡 {signal['message']}
@@ -796,7 +833,7 @@ try:
 
                 # Display anomalies
                 if volume_analysis['volume_anomalies']:
-                    st.markdown("### ⚠️ Volume Anomalies")
+                    st.markdown("### ⚠️ VolumeAnomalies")
                     for anomaly in volume_analysis['volume_anomalies']:
                         severity_color = 'red' if anomaly['anomaly_score'] > 3.0 else 'orange'
                         st.markdown(f"""
@@ -908,6 +945,207 @@ try:
 
         else:
             st.error("Unable to fetch market data. Please try again later or select a different stock.")
+
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        st.info("Please refresh the page to try again.")
+
+    # Volume Indicators Section
+    if volume_analysis == "🔍 Anomaly Detection":
+        st.subheader("Volume Anomaly Detection")
+
+        # Anomaly Detection Metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(
+                "Anomaly Score",
+                f"{ml_insights['anomaly_score']:.2f}",
+                f"{ml_insights['anomaly_change']:.1%}"
+            )
+        with col2:
+            st.metric(
+                "Volume Ratio",
+                f"{volume_shift_analysis['latest_metrics']['rvol']:.1f}x",
+                f"{volume_shift_analysis['latest_metrics']['volume_trend']:.1%}"
+            )
+        with col3:
+            st.metric(
+                "Pattern Type",
+                volume_shift_analysis['classification']
+            )
+
+        # Anomaly Timeline
+        st.markdown("#### Anomaly Timeline")
+        if data is not None and not data.empty:
+            anomaly_fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                      vertical_spacing=0.03,
+                                      row_heights=[0.7, 0.3])
+
+            # Price chart with anomalies
+            anomaly_fig.add_trace(
+                go.Candlestick(
+                    x=data.index,
+                    open=data['Open'],
+                    high=data['High'],
+                    low=data['Low'],
+                    close=data['Close'],
+                    name="Price"
+                ),
+                row=1, col=1
+            )
+
+            # Volume with anomaly highlighting
+            colors = ['red' if a == -1 else 'green' for a in ml_insights['anomalies']]
+            anomaly_fig.add_trace(
+                go.Bar(
+                    x=data.index,
+                    y=data['Volume'],
+                    name="Volume",
+                    marker_color=colors
+                ),
+                row=2, col=1
+            )
+
+            anomaly_fig.update_layout(
+                height=600,
+                template="plotly_dark",
+                showlegend=False
+            )
+            st.plotly_chart(anomaly_fig, use_container_width=True)
+
+    elif volume_analysis == "📱 Momentum Forecasting":
+        st.subheader("Volume Momentum Analysis")
+
+        # Initialize momentum data if not available
+        if 'momentum_score' not in trading_signals:
+            trading_signals['momentum_score'] = 0.0
+            trading_signals['momentum_change'] = 0.0
+            trading_signals['momentum_forecast'] = [0.0] * 30
+
+        # Momentum Metrics
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(
+                "Momentum Score",
+                f"{trading_signals['momentum_score']:.2f}",
+                f"{trading_signals['momentum_change']:.1%}"
+            )
+        with col2:
+            st.metric(
+                "Trend Strength",
+                f"{regime_info['regime_strength']:.1%}",
+                f"Based on {regime_info['regime_type']}"
+            )
+
+        # Momentum Forecast Chart
+        if data is not None and not data.empty:
+            momentum_fig = go.Figure()
+
+            # Add momentum column if not present
+            if 'momentum' not in data.columns:
+                data['momentum'] = data['Close'].pct_change().rolling(window=20).mean()
+
+            # Historical momentum
+            momentum_fig.add_trace(
+                go.Scatter(
+                    x=data.index,
+                    y=data['momentum'],
+                    name="Historical Momentum",
+                    line=dict(color='blue')
+                )
+            )
+
+            # Forecast
+            momentum_fig.add_trace(
+                go.Scatter(
+                    x=data.index[-30:],  # Last 30 days
+                    y=trading_signals['momentum_forecast'],
+                    name="Forecast",
+                    line=dict(color='yellow', dash='dash')
+                )
+            )
+
+            momentum_fig.update_layout(
+                height=400,
+                template="plotly_dark",
+                title="Volume Momentum Forecast"
+            )
+            st.plotly_chart(momentum_fig, use_container_width=True)
+
+    elif volume_analysis == "↔️ Volume Divergence":
+        st.subheader("Volume Divergence Analysis")
+
+        # Divergence Metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(
+                "Buy/Sell Ratio",
+                f"{volume_shift_analysis['buy_sell_ratio']:.2f}",
+                f"{volume_shift_analysis['ratio_change']:.1%}"
+            )
+        with col2:
+            st.metric(
+                "Volume Trend",
+                volume_shift_analysis['trend_type'],
+                f"{volume_shift_analysis['trend_strength']:.1%}"
+            )
+        with col3:
+            st.metric(
+                "Divergence Score",
+                f"{volume_shift_analysis['divergence_score']:.2f}",
+                f"{volume_shift_analysis['score_change']:.1%}"
+            )
+
+        # Volume Divergence Chart
+        if data is not None and not data.empty:
+            # Calculate buy/sell volume if not present
+            if 'buy_volume' not in data.columns:
+                data['buy_volume'] = data['Volume'] * (data['Close'] > data['Open'])
+            if 'sell_volume' not in data.columns:
+                data['sell_volume'] = data['Volume'] * (data['Close'] <= data['Open'])
+
+            divergence_fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                                         vertical_spacing=0.03,
+                                         row_heights=[0.7, 0.3])
+
+            # Price with divergence markers
+            divergence_fig.add_trace(
+                go.Scatter(
+                    x=data.index,
+                    y=data['Close'],
+                    name="Price",
+                    line=dict(color='white')
+                ),
+                row=1, col=1
+            )
+
+            # Buy/Sell Volume
+            divergence_fig.add_trace(
+                go.Bar(
+                    x=data.index,
+                    y=data['buy_volume'],
+                    name="Buy Volume",
+                    marker_color='green'
+                ),
+                row=2, col=1
+            )
+
+            divergence_fig.add_trace(
+                go.Bar(
+                    x=data.index,
+                    y=data['sell_volume'],
+                    name="Sell Volume",
+                    marker_color='red'
+                ),
+                row=2, col=1
+            )
+
+            divergence_fig.update_layout(
+                height=600,
+                template="plotly_dark",
+                title="Volume Divergence Analysis"
+            )
+            st.plotly_chart(divergence_fig, use_container_width=True)
 
 except Exception as e:
     st.error(f"An error occurred: {str(e)}")
