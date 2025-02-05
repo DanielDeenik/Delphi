@@ -108,6 +108,21 @@ try:
         st.title("Oracle of Delphi 🏛️")
         st.write("Welcome to the Market Intelligence Dashboard")
 
+        # Navigation Sections
+        st.sidebar.markdown("## 🔮 AI Assessments")
+        ai_analysis = st.sidebar.radio(
+            "",
+            options=["📊 Earnings Analysis", "💭 Sentiment Trends", "🎯 Market Driver Insights"],
+            key="ai_navigation"
+        )
+
+        st.sidebar.markdown("## 📈 Volume Indicators")
+        volume_analysis = st.sidebar.radio(
+            "",
+            options=["🔍 Anomaly Detection", "📱 Momentum Forecasting", "↔️ Volume Divergence"],
+            key="volume_navigation"
+        )
+
         # Add new asset to watchlist
         st.subheader("Add New Asset")
 
