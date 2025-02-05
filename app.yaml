@@ -1,6 +1,5 @@
 runtime: python39
 entrypoint: streamlit run app.py --server.port $PORT
-instance_class: F1
 
 env_variables:
   STREAMLIT_SERVER_PORT: $PORT
