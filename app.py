@@ -705,32 +705,17 @@ try:
                             **Signal:**  
                             {insight['signal']}
 
+                            **Context:**  
+                            {insight['context']}
+
                             **Metrics:**
                             - Volume Ratio: {insight['metrics']['volume_ratio']:.2f}x average
-                            - Price Change: {insight['metrics']['price_change']:.2%}
+                            - Price Change: {insight['metrics'].get('price_change', 0):.2%}
+                            - Volume Trend: {insight['metrics'].get('volume_trend', 0):.2%}
+                            - Price-Volume Correlation: {insight['metrics'].get('price_vol_correlation', 0):.2f}
                         """)
             else:
                 st.info("No significant volume patterns detected by AI", icon="ℹ️")
-
-            # Volume Patterns Analysis
-            st.subheader("📈 Volume Patterns")
-            col1, col2, col3, col4 = st.columns(4)
-
-            with col1:
-                accumulation_count = patterns['accumulation'].sum()
-                st.metric("Accumulation Patterns", accumulation_count)
-
-            with col2:
-                distribution_count = patterns['distribution'].sum()
-                st.metric("Distribution Patterns", distribution_count)
-
-            with col3:
-                breakout_count = patterns['breakout'].sum()
-                st.metric("Breakout Patterns", breakout_count)
-
-            with col4:
-                exhaustion_count = patterns['exhaustion'].sum()
-                st.metric("Exhaustion Patterns", exhaustion_count)
 
             # Pattern Search
             st.subheader("🔍 Pattern Search")
@@ -743,7 +728,8 @@ try:
                         <div style='padding: 10px; border-left: 5px solid purple; background-color: rgba(0,0,0,0.1);'>
                             <b>{pattern['pattern'].replace('_', ' ').title()}</b> (Score: {pattern['similarity_score']:.2f})<br>
                             {pattern['description']}<br>
-                            <i>{pattern['signal']}</i>
+                            <i>{pattern['signal']}</i><br>
+                            <b>Context:</b> {pattern['context']}
                         </div>
                         """,
                         unsafe_allow_html=True
@@ -801,7 +787,7 @@ try:
                         st.markdown(f"""
                             <div style='padding: 10px; border-left: 5px solid {severity_color}; background-color: rgba(0,0,0,0.1);'>
                                 <h4>Volume Anomaly Detected</h4>
-                                <b>Score:</b> {anomaly['anomaly_score']:.1f}<br>
+                                <b>Score:</b> {anomaly['anomaly_score']:..1f}<br>
                                 <b>Confidence:</b> {anomaly['confidence']:.1%}<br>
                                 <b>Pattern:</b> {anomaly['pattern_start']} to {anomaly['pattern_end']}
                             </div>
