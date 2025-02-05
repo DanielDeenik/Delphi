@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
-import faiss
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 from typing import Dict, List, Optional
 import logging
 from datetime import datetime
@@ -13,19 +13,9 @@ class RAGTradeAnalyzer:
     """RAG-powered trade analysis and insight generation"""
 
     def __init__(self):
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.index = None
+        self.vectorizer = TfidfVectorizer(stop_words='english')
         self.trade_data = []
-        self.embedding_dim = 384  # Default dimension for all-MiniLM-L6-v2
-
-    def initialize_index(self):
-        """Initialize FAISS index for trade data"""
-        try:
-            self.index = faiss.IndexFlatL2(self.embedding_dim)
-            logger.info("Successfully initialized FAISS index")
-        except Exception as e:
-            logger.error(f"Error initializing FAISS index: {str(e)}")
-            raise
+        self.pattern_embeddings = None
 
     def add_trade_data(self, trades: List[Dict]):
         """Add historical trade data to the index"""
@@ -34,16 +24,10 @@ class RAGTradeAnalyzer:
             trade_texts = [self._trade_to_text(trade) for trade in trades]
 
             # Generate embeddings
-            embeddings = self.embedding_model.encode(trade_texts)
-
-            # Add to FAISS index
-            if self.index is None:
-                self.initialize_index()
-
-            self.index.add(np.array(embeddings).astype('float32'))
+            self.pattern_embeddings = self.vectorizer.fit_transform(trade_texts)
             self.trade_data.extend(trades)
 
-            logger.info(f"Successfully added {len(trades)} trades to the index")
+            logger.info(f"Successfully added {len(trades)} trades to the database")
         except Exception as e:
             logger.error(f"Error adding trade data: {str(e)}")
             raise
@@ -63,6 +47,10 @@ class RAGTradeAnalyzer:
     def get_similar_trades(self, current_conditions: Dict, k: int = 5) -> List[Dict]:
         """Find similar historical trades based on current market conditions"""
         try:
+            if not self.trade_data:
+                logger.warning("No historical trade data available")
+                return []
+
             # Convert current conditions to text
             condition_text = (
                 f"Market conditions: {current_conditions.get('market_regime', '')} "
@@ -71,25 +59,21 @@ class RAGTradeAnalyzer:
                 f"Technical Signals: {current_conditions.get('technical_signals', '')}"
             )
 
-            # Generate embedding
-            query_embedding = self.embedding_model.encode([condition_text])
+            # Generate embedding for query
+            query_embedding = self.vectorizer.transform([condition_text])
 
-            # Search similar trades
-            if self.index is None or len(self.trade_data) == 0:
-                logger.warning("No historical trade data available")
-                return []
+            # Calculate similarity scores
+            similarity_scores = cosine_similarity(query_embedding, self.pattern_embeddings)[0]
 
-            distances, indices = self.index.search(
-                np.array(query_embedding).astype('float32'), k
-            )
+            # Get top k similar trades
+            top_indices = np.argsort(-similarity_scores)[:k]
 
             # Return similar trades with similarity scores
             similar_trades = []
-            for i, (distance, idx) in enumerate(zip(distances[0], indices[0])):
-                if idx < len(self.trade_data):
-                    trade = self.trade_data[idx].copy()
-                    trade['similarity_score'] = float(1 / (1 + distance))
-                    similar_trades.append(trade)
+            for idx in top_indices:
+                trade = self.trade_data[idx].copy()
+                trade['similarity_score'] = float(similarity_scores[idx])
+                similar_trades.append(trade)
 
             return similar_trades
 
@@ -98,8 +82,8 @@ class RAGTradeAnalyzer:
             return []
 
     def generate_trade_insights(self, 
-                              current_conditions: Dict,
-                              similar_trades: List[Dict]) -> Dict:
+                            current_conditions: Dict,
+                            similar_trades: List[Dict]) -> Dict:
         """Generate AI-enhanced trade insights based on similar historical trades"""
         try:
             if not similar_trades:
@@ -110,7 +94,7 @@ class RAGTradeAnalyzer:
                 trade for trade in similar_trades 
                 if trade.get('profit', 0) > 0
             ]
-            success_rate = len(successful_trades) / len(similar_trades)
+            success_rate = len(successful_trades) / len(similar_trades) if similar_trades else 0
 
             # Calculate average profit and risk metrics
             avg_profit = np.mean([
@@ -119,7 +103,7 @@ class RAGTradeAnalyzer:
 
             avg_risk_ratio = np.mean([
                 trade.get('risk_reward_ratio', 1) for trade in similar_trades
-            ])
+            ]) if similar_trades else 0
 
             # Generate insights
             insights = {
@@ -150,9 +134,9 @@ class RAGTradeAnalyzer:
             return self._generate_default_insights()
 
     def _generate_recommendations(self, 
-                                success_rate: float, 
-                                avg_profit: float,
-                                risk_ratio: float) -> List[str]:
+                               success_rate: float, 
+                               avg_profit: float,
+                               risk_ratio: float) -> List[str]:
         """Generate specific trading recommendations"""
         recommendations = []
 
@@ -174,8 +158,8 @@ class RAGTradeAnalyzer:
         return recommendations
 
     def _calculate_confidence_score(self, 
-                                  similar_trades: List[Dict],
-                                  current_conditions: Dict) -> float:
+                                similar_trades: List[Dict],
+                                current_conditions: Dict) -> float:
         """Calculate confidence score based on historical similarity"""
         if not similar_trades:
             return 0.0
@@ -194,7 +178,7 @@ class RAGTradeAnalyzer:
         # Calculate success confidence
         success_rate = len([
             trade for trade in similar_trades if trade.get('profit', 0) > 0
-        ]) / len(similar_trades)
+        ]) / len(similar_trades) if similar_trades else 0
         success_confidence = success_rate
 
         # Calculate volume confidence
