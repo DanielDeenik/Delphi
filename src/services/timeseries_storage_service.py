@@ -6,7 +6,6 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 from google.cloud import bigquery
 from google.cloud import storage
-from firebase_admin import db
 from pandas_gbq import to_gbq
 
 logger = logging.getLogger(__name__)
@@ -46,12 +45,12 @@ class TimeSeriesStorageService:
             raise
 
     def store_market_data(self, 
-                         symbol: str, 
-                         data: pd.DataFrame,
-                         partition_size: str = "1D") -> bool:
+                        symbol: str, 
+                        data: pd.DataFrame,
+                        partition_size: str = "1D") -> bool:
         """
         Store market data efficiently based on time partitions.
-        
+
         Args:
             symbol: Trading symbol (e.g., 'AAPL')
             data: DataFrame with market data
@@ -65,14 +64,9 @@ class TimeSeriesStorageService:
             # Partition data
             partitions = self._partition_data(data, partition_size)
 
-            # Store real-time data in Firebase
-            latest_data = data.tail(1).to_dict('records')[0]
-            latest_data['timestamp'] = datetime.now().isoformat()
-            db.reference(f'market_data/{symbol}/latest').set(latest_data)
-
             # Store historical data in BigQuery
             table_id = f"{self.dataset_id}.{symbol.lower()}_market_data"
-            
+
             # Use efficient schema with clustering
             job_config = bigquery.LoadJobConfig(
                 clustering_fields=["date"],
@@ -123,7 +117,7 @@ class TimeSeriesStorageService:
                 bucket = self.storage_client.bucket(self.bucket_name)
                 archive_path = f"{symbol}/archive_{cutoff_date.strftime('%Y%m')}.parquet"
                 blob = bucket.blob(archive_path)
-                
+
                 # Save as parquet for efficient storage
                 old_data.to_parquet(f"/tmp/{archive_path}")
                 blob.upload_from_filename(f"/tmp/{archive_path}")
@@ -140,21 +134,12 @@ class TimeSeriesStorageService:
                        end_date: datetime) -> pd.DataFrame:
         """
         Retrieve market data from the most appropriate storage.
-        
+
         Automatically fetches from:
-        - Firebase for real-time data
         - BigQuery for recent historical data
         - GCS for archived data
         """
         try:
-            # Get real-time data from Firebase
-            if end_date >= datetime.now() - timedelta(minutes=5):
-                latest_ref = db.reference(f'market_data/{symbol}/latest')
-                latest_data = latest_ref.get()
-                if latest_data:
-                    latest_df = pd.DataFrame([latest_data])
-                    latest_df.set_index('timestamp', inplace=True)
-
             # Query historical data from BigQuery
             query = f"""
                 SELECT *
@@ -162,19 +147,15 @@ class TimeSeriesStorageService:
                 WHERE date BETWEEN @start_date AND @end_date
                 ORDER BY date
             """
-            
+
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
                     bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
                     bigquery.ScalarQueryParameter("end_date", "DATE", end_date),
                 ]
             )
-            
-            historical_df = self.bq_client.query(query, job_config=job_config).to_dataframe()
 
-            # Combine results
-            if 'latest_df' in locals():
-                return pd.concat([historical_df, latest_df])
+            historical_df = self.bq_client.query(query, job_config=job_config).to_dataframe()
             return historical_df
 
         except Exception as e:

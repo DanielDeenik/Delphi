@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -10,24 +11,17 @@ from src.utils.signals import SignalGenerator
 from src.utils.alerts import AlertSystem
 from src.services.trading_signal_service import TradingSignalService
 from src.services.volume_analysis_service import VolumeAnalysisService
-from src.services.sentiment_analysis_service import SentimentAnalysisService  # Add this import
+from src.services.sentiment_analysis_service import SentimentAnalysisService
+from src.services.timeseries_storage_service import TimeSeriesStorageService
 import numpy as np
 import logging
 import plotly.express as px
 from datetime import datetime, timedelta
 import time
 
-# Add Firebase configuration
-import firebase_admin
-from firebase_admin import credentials, db
-from src.services.timeseries_storage_service import TimeSeriesStorageService
-
-# Initialize Firebase (if not already initialized)
-if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase-credentials.json")
-    firebase_admin.initialize_app(cred, {
-        'databaseURL': 'YOUR_DATABASE_URL'
-    })
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Page config must be the first Streamlit command
 st.set_page_config(
@@ -449,29 +443,24 @@ try:
 
                 st.plotly_chart(fig, use_container_width=True)
 
-                # Add real-time updates section
-                st.subheader("Real-time Updates")
-                if st.checkbox("Enable real-time updates"):
-                    placeholder = st.empty()
-                    while True:
-                        # Update data from Firebase
-                        try:
-                            new_data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
-                            if new_data is not None and not new_data.empty:
-                                with placeholder.container():
-                                    st.metric(
-                                        "Latest Volume",
-                                        f"{new_data['Volume'].iloc[-1]:,.0f}",
-                                        delta=f"{new_data['Volume'].pct_change().iloc[-1]:.1%}"
-                                    )
-                            st.experimental_rerun()
-                        except Exception as e:
-                            st.error(f"Error updating data: {str(e)}")
-                        time.sleep(60)  # Update every minute
+                # Simplified real-time updates section
+                st.subheader("Manual Refresh")
+                if st.button("Refresh Data"):
+                    try:
+                        new_data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
+                        if new_data is not None and not new_data.empty:
+                            st.metric(
+                                "Latest Volume",
+                                f"{new_data['Volume'].iloc[-1]:,.0f}",
+                                delta=f"{new_data['Volume'].pct_change().iloc[-1]:.1%}"
+                            )
+                            st.success("Data refreshed successfully!")
+                        st.experimental_rerun()
+                    except Exception as e:
+                        st.error(f"Error updating data: {str(e)}")
 
         except Exception as e:
             st.error(f"Error fetching data for Anomaly Detection: {e}")
-
 
     elif volume_section == "Momentum Forecasting":
         st.title(f"Volume Momentum Analysis - {selected_symbol}")
