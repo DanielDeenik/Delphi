@@ -969,6 +969,26 @@ wheels = [
 ]
 
 [[package]]
+name = "gym"
+version = "0.26.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cloudpickle" },
+    { name = "gym-notices" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ab/b1/eb05a423eb801ab7d0715d6a3b28d92589e30b437052553df19ca2087240/gym-0.26.2.tar.gz", hash = "sha256:e0d882f4b54f0c65f203104c24ab8a38b039f1289986803c7d02cdbe214fbcc4", size = 721689 }
+
+[[package]]
+name = "gym-notices"
+version = "0.0.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/62/d312681b09cacf77d04237a2815653c58e5031998bb613ce114b85fc3f57/gym-notices-0.0.8.tar.gz", hash = "sha256:ad25e200487cafa369728625fe064e88ada1346618526102659b4640f2b4b911", size = 2685 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/25/26/d786c6bec30fe6110fd3d22c9a273a2a0e56c0b73b93e25ea1af5a53243b/gym_notices-0.0.8-py3-none-any.whl", hash = "sha256:e5f82e00823a166747b4c2a07de63b6560b1acb880638547e0cabf825a01e463", size = 2965 },
+]
+
+[[package]]
 name = "h11"
 version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1282,6 +1302,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bf/85/d52a86eb5ae700e1f8694157019249eb33350ae9e477cd03ecdb50939d22/keras-2.14.0.tar.gz", hash = "sha256:22788bdbc86d9988794fe9703bb5205141da797c4faeeb59497c58c3d94d34ed", size = 1251354 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/58/34d4d8f1aa11120c2d36d7ad27d0526164b1a8ae45990a2fede31d0e59bf/keras-2.14.0-py3-none-any.whl", hash = "sha256:d7429d1d2131cc7eb1f2ea2ec330227c7d9d38dab3dfdf2e78defee4ecc43fcd", size = 1709236 },
+]
+
+[[package]]
+name = "keras-rl2"
+version = "1.0.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tensorflow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a1/0a/7e980f921a51cd75a8cf887fa3ac6a7e3f3b2bc22f45549e90cfaba37ed0/keras-rl2-1.0.5.tar.gz", hash = "sha256:1a31d16e212ff3e01b904d42c3b3961b588841d1b2563b5ac51ed9b936ec7be3", size = 40907 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b6/fc/143ee05aed804b3b9052d7b17b13832bc7f3c28e7b1bc50edd09c29d8525/keras_rl2-1.0.5-py3-none-any.whl", hash = "sha256:296e758bf4660531f51927c4fae983538a7b8bfd9f92b1082433ed44baff9aef", size = 52111 },
 ]
 
 [[package]]
@@ -2448,8 +2480,10 @@ dependencies = [
     { name = "databutton" },
     { name = "faiss-cpu" },
     { name = "firebase-admin" },
+    { name = "gym" },
     { name = "hmmlearn" },
     { name = "influxdb-client" },
+    { name = "keras-rl2" },
     { name = "numpy" },
     { name = "openai" },
     { name = "pandas" },
@@ -2485,8 +2519,10 @@ requires-dist = [
     { name = "databutton", specifier = ">=0.38.37" },
     { name = "faiss-cpu", specifier = ">=1.10.0" },
     { name = "firebase-admin", specifier = ">=6.6.0" },
+    { name = "gym", specifier = ">=0.26.2" },
     { name = "hmmlearn", specifier = ">=0.3.0" },
     { name = "influxdb-client", specifier = ">=1.48.0" },
+    { name = "keras-rl2", specifier = ">=1.0.5" },
     { name = "numpy", specifier = ">=1.22.0,<2.0.0" },
     { name = "openai", specifier = ">=1.61.0" },
     { name = "pandas", specifier = ">=2.2.0" },

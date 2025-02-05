@@ -36,6 +36,8 @@ dependencies = [
     "influxdb-client>=1.48.0",
     "ccxt>=4.4.52",
     "ratelimit>=2.2.1",
+    "keras-rl2>=1.0.5",
+    "gym>=0.26.2",
 ]
 
 [[tool.uv.index]]
