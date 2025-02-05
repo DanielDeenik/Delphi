@@ -14,6 +14,7 @@ from src.models.lstm_price_predictor import LSTMPricePredictor
 from src.services.trading_signal_service import TradingSignalService
 from src.services.volume_analysis_service import VolumeAnalysisService
 import time
+from src.models.volume_shift_analyzer import VolumeShiftAnalyzer
 
 # Page config must be the first Streamlit command
 st.set_page_config(
@@ -100,6 +101,7 @@ try:
     ml_analyzer = MLVolumeAnalyzer()
     signal_generator = SignalGenerator()
     alert_system = AlertSystem()
+    volume_shift_analyzer = VolumeShiftAnalyzer()
 
     # Sidebar configuration
     with st.sidebar:
@@ -507,6 +509,60 @@ try:
             # Get RAG and ML insights
             rag_insights = rag_analyzer.analyze_volume_pattern(data)
             ml_insights = ml_analyzer.detect_volume_patterns(data)
+
+            # Analyze volume shifts
+            volume_shift_analysis = volume_shift_analyzer.analyze_volume_shift(data)
+            explanatory_insights = volume_shift_analyzer.get_explanatory_insights(data)
+
+            # Display volume shift insights
+            st.markdown("### 🔄 Volume Shift Analysis")
+
+            # Display metrics in columns
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric(
+                    "Relative Volume",
+                    f"{volume_shift_analysis['latest_metrics']['rvol']:.1f}x",
+                    f"{volume_shift_analysis['latest_metrics']['volume_trend']:.1%}"
+                )
+            with col2:
+                st.metric(
+                    "Volume Pattern",
+                    volume_shift_analysis['classification']
+                )
+            with col3:
+                st.metric(
+                    "Price-Volume Correlation",
+                    f"{volume_shift_analysis['latest_metrics']['price_volume_correlation']:.2f}"
+                )
+
+            # Display key insights
+            st.markdown("#### Key Insights")
+            for insight in explanatory_insights:
+                st.markdown(f"• {insight}")
+
+            # Display feature importance
+            st.markdown("#### Volume Drivers")
+            importance_data = volume_shift_analysis['feature_importance']
+
+            fig = go.Figure(data=[
+                go.Bar(
+                    y=list(importance_data.keys()),
+                    x=list(importance_data.values()),
+                    orientation='h',
+                    marker_color='#00A68C'
+                )
+            ])
+
+            fig.update_layout(
+                title="Driver Attribution",
+                xaxis_title="Impact Score",
+                template="plotly_dark",
+                height=200
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
 
             # Create main chart
             fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
