@@ -14,14 +14,28 @@ class TimeSeriesStorageService:
     """Manages time series data storage across different storage solutions."""
 
     def __init__(self):
-        self.bq_client = bigquery.Client()
-        self.storage_client = storage.Client()
-        self.dataset_id = "market_data"
-        self.bucket_name = "market_data_cold_storage"
-        self._ensure_storage_setup()
+        self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+        if not self.project_id:
+            logger.warning("GOOGLE_CLOUD_PROJECT environment variable not set. Using local storage fallback.")
+            self.use_cloud = False
+            return
+
+        try:
+            self.bq_client = bigquery.Client(project=self.project_id)
+            self.storage_client = storage.Client(project=self.project_id)
+            self.dataset_id = "market_data"
+            self.bucket_name = "market_data_cold_storage"
+            self.use_cloud = True
+            self._ensure_storage_setup()
+        except Exception as e:
+            logger.warning(f"Failed to initialize cloud storage: {e}. Using local storage fallback.")
+            self.use_cloud = False
 
     def _ensure_storage_setup(self):
         """Ensure required BigQuery datasets and GCS buckets exist."""
+        if not self.use_cloud:
+            return
+
         try:
             # Create BigQuery dataset if it doesn't exist
             dataset_ref = self.bq_client.dataset(self.dataset_id)
@@ -42,20 +56,25 @@ class TimeSeriesStorageService:
 
         except Exception as e:
             logger.error(f"Error setting up storage: {str(e)}")
-            raise
+            self.use_cloud = False
 
     def store_market_data(self, 
                         symbol: str, 
                         data: pd.DataFrame,
                         partition_size: str = "1D") -> bool:
-        """
-        Store market data efficiently based on time partitions.
+        """Store market data efficiently based on time partitions."""
+        if not self.use_cloud:
+            # Save locally as CSV if cloud storage is not available
+            try:
+                os.makedirs('data/market_data', exist_ok=True)
+                filename = f'data/market_data/{symbol.lower()}_market_data.csv'
+                data.to_csv(filename)
+                logger.info(f"Stored market data locally at: {filename}")
+                return True
+            except Exception as e:
+                logger.error(f"Error storing market data locally: {str(e)}")
+                return False
 
-        Args:
-            symbol: Trading symbol (e.g., 'AAPL')
-            data: DataFrame with market data
-            partition_size: Size of time partitions ('1D', '1H', etc.)
-        """
         try:
             # Ensure data is properly indexed
             if not isinstance(data.index, pd.DatetimeIndex):
@@ -82,7 +101,7 @@ class TimeSeriesStorageService:
                 to_gbq(partition_data, 
                       table_id, 
                       if_exists='append',
-                      project_id=os.getenv('GOOGLE_CLOUD_PROJECT'))
+                      project_id=self.project_id)
 
             # Archive old data to GCS
             self._archive_old_data(symbol, data)
@@ -92,6 +111,46 @@ class TimeSeriesStorageService:
         except Exception as e:
             logger.error(f"Error storing market data: {str(e)}")
             return False
+
+    def get_market_data(self,
+                       symbol: str,
+                       start_date: datetime,
+                       end_date: datetime) -> pd.DataFrame:
+        """Retrieve market data from storage."""
+        if not self.use_cloud:
+            try:
+                filename = f'data/market_data/{symbol.lower()}_market_data.csv'
+                if os.path.exists(filename):
+                    df = pd.read_csv(filename, index_col=0, parse_dates=True)
+                    mask = (df.index >= start_date) & (df.index <= end_date)
+                    return df[mask]
+                return pd.DataFrame()
+            except Exception as e:
+                logger.error(f"Error reading local market data: {str(e)}")
+                return pd.DataFrame()
+
+        try:
+            # Query historical data from BigQuery
+            query = f"""
+                SELECT *
+                FROM `{self.project_id}.{self.dataset_id}.{symbol.lower()}_market_data`
+                WHERE date BETWEEN @start_date AND @end_date
+                ORDER BY date
+            """
+
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
+                    bigquery.ScalarQueryParameter("end_date", "DATE", end_date),
+                ]
+            )
+
+            historical_df = self.bq_client.query(query, job_config=job_config).to_dataframe()
+            return historical_df
+
+        except Exception as e:
+            logger.error(f"Error retrieving market data: {str(e)}")
+            return pd.DataFrame()
 
     def _partition_data(self, 
                        data: pd.DataFrame, 
@@ -108,6 +167,9 @@ class TimeSeriesStorageService:
                          data: pd.DataFrame,
                          days_threshold: int = 90):
         """Archive old data to cold storage."""
+        if not self.use_cloud:
+            return
+
         try:
             cutoff_date = datetime.now() - timedelta(days=days_threshold)
             old_data = data[data.index < cutoff_date]
@@ -128,49 +190,18 @@ class TimeSeriesStorageService:
         except Exception as e:
             logger.error(f"Error archiving old data: {str(e)}")
 
-    def get_market_data(self,
-                       symbol: str,
-                       start_date: datetime,
-                       end_date: datetime) -> pd.DataFrame:
-        """
-        Retrieve market data from the most appropriate storage.
-
-        Automatically fetches from:
-        - BigQuery for recent historical data
-        - GCS for archived data
-        """
-        try:
-            # Query historical data from BigQuery
-            query = f"""
-                SELECT *
-                FROM `{self.dataset_id}.{symbol.lower()}_market_data`
-                WHERE date BETWEEN @start_date AND @end_date
-                ORDER BY date
-            """
-
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("start_date", "DATE", start_date),
-                    bigquery.ScalarQueryParameter("end_date", "DATE", end_date),
-                ]
-            )
-
-            historical_df = self.bq_client.query(query, job_config=job_config).to_dataframe()
-            return historical_df
-
-        except Exception as e:
-            logger.error(f"Error retrieving market data: {str(e)}")
-            return pd.DataFrame()
-
     def cleanup_old_data(self, 
                         symbol: str, 
                         days_to_keep: int = 90) -> bool:
         """Clean up old data from BigQuery after successful archival."""
+        if not self.use_cloud:
+            return True
+
         try:
             cutoff_date = datetime.now() - timedelta(days=days_to_keep)
             
             query = f"""
-                DELETE FROM `{self.dataset_id}.{symbol.lower()}_market_data`
+                DELETE FROM `{self.project_id}.{self.dataset_id}.{symbol.lower()}_market_data`
                 WHERE date < @cutoff_date
             """
             
@@ -184,7 +215,7 @@ class TimeSeriesStorageService:
             query_job.result()
             
             return True
-
+        
         except Exception as e:
             logger.error(f"Error cleaning up old data: {str(e)}")
             return False
