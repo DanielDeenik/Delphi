@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-analysis-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: rag-analysis
+  template:
+    metadata:
+      labels:
+        app: rag-analysis
+    spec:
+      containers:
+      - name: rag-analysis
+        image: rag-financial/rag-analysis:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: api-secrets
+              key: openai-api-key
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag-analysis-service
+spec:
+  selector:
+    app: rag-analysis
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer

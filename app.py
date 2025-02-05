@@ -10,6 +10,7 @@ from src.utils.signals import SignalGenerator
 from src.utils.alerts import AlertSystem
 from src.services.trading_signal_service import TradingSignalService
 from src.services.volume_analysis_service import VolumeAnalysisService
+from src.services.sentiment_analysis_service import SentimentAnalysisService  # Add this import
 import numpy as np
 import logging
 import plotly.express as px
@@ -343,7 +344,7 @@ try:
 
             # Calculate Z-score for anomaly detection
             data['volume_z_score'] = (data['Volume'] - data['Volume'].rolling(window=20).mean()) / \
-                                   data['Volume'].rolling(window=20).std()
+                                      data['Volume'].rolling(window=20).std()
             data['is_anomaly'] = data['volume_z_score'].abs() > 2
 
             # Calculate momentum score
