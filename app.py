@@ -225,70 +225,78 @@ try:
     elif ai_section == "Sentiment Trends":
         st.title("Sentiment Analysis")
 
-        if data is not None and not data.empty:
-            # Get sentiment data
-            sentiment_data = sentiment_service.get_sentiment_analysis(selected_symbol)
+        try:
+            # Fetch historical data first
+            data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
 
-            # Sentiment Overview
-            st.subheader("Sentiment Overview")
-            sent_cols = st.columns(3)
+            if data is not None and not data.empty:
+                # Get sentiment data
+                sentiment_data = sentiment_service.get_sentiment_analysis(selected_symbol)
 
-            with sent_cols[0]:
-                sentiment_score = sentiment_data['sentiment_metrics']['overall_score']
-                st.metric(
-                    "Overall Sentiment",
-                    f"{sentiment_score:.2f}",
-                    f"{sentiment_data['sentiment_metrics']['sentiment_change_24h']:.1%}",
-                    help="Aggregated sentiment score from multiple sources"
-                )
+                # Sentiment Overview
+                st.subheader("Sentiment Overview")
+                sent_cols = st.columns(3)
 
-            with sent_cols[1]:
-                st.metric(
-                    "Social Media Buzz",
-                    "High",
-                    "↑ 15%",
-                    help="Social media mention volume"
-                )
-
-            with sent_cols[2]:
-                st.metric(
-                    "Viral Coefficient",
-                    f"{sentiment_data['sentiment_metrics']['viral_coefficient']:.2f}",
-                    help="Measure of content virality"
-                )
-
-            # STEPPS Framework Analysis
-            st.subheader("STEPPS Framework Analysis")
-            stepps_cols = st.columns(2)
-
-            with stepps_cols[0]:
-                stepps_data = sentiment_data['stepps_analysis']
-                stepps_fig = go.Figure(data=[
-                    go.Scatterpolar(
-                        r=[
-                            stepps_data['social_currency'],
-                            stepps_data['triggers'],
-                            stepps_data['emotion'],
-                            stepps_data['public'],
-                            stepps_data['practical_value'],
-                            stepps_data['stories']
-                        ],
-                        theta=['Social Currency', 'Triggers', 'Emotion',
-                               'Public', 'Practical Value', 'Stories'],
-                        fill='toself'
+                with sent_cols[0]:
+                    sentiment_score = sentiment_data['sentiment_metrics']['overall_score']
+                    st.metric(
+                        "Overall Sentiment",
+                        f"{sentiment_score:.2f}",
+                        f"{sentiment_data['sentiment_metrics']['sentiment_change_24h']:.1%}",
+                        help="Aggregated sentiment score from multiple sources"
                     )
-                ])
-                stepps_fig.update_layout(
-                    polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
-                    showlegend=False,
-                    template="plotly_dark"
-                )
-                st.plotly_chart(stepps_fig, use_container_width=True)
 
-            with stepps_cols[1]:
-                st.subheader("Trend Classification")
-                st.write(sentiment_data['trend_classification']['classification'])
-                st.progress(sentiment_data['trend_classification']['confidence'])
+                with sent_cols[1]:
+                    st.metric(
+                        "Social Media Buzz",
+                        "High",
+                        "↑ 15%",
+                        help="Social media mention volume"
+                    )
+
+                with sent_cols[2]:
+                    st.metric(
+                        "Viral Coefficient",
+                        f"{sentiment_data['sentiment_metrics']['viral_coefficient']:.2f}",
+                        help="Measure of content virality"
+                    )
+
+                # STEPPS Framework Analysis
+                st.subheader("STEPPS Framework Analysis")
+                stepps_cols = st.columns(2)
+
+                with stepps_cols[0]:
+                    stepps_data = sentiment_data['stepps_analysis']
+                    stepps_fig = go.Figure(data=[
+                        go.Scatterpolar(
+                            r=[
+                                stepps_data['social_currency'],
+                                stepps_data['triggers'],
+                                stepps_data['emotion'],
+                                stepps_data['public'],
+                                stepps_data['practical_value'],
+                                stepps_data['stories']
+                            ],
+                            theta=['Social Currency', 'Triggers', 'Emotion',
+                                   'Public', 'Practical Value', 'Stories'],
+                            fill='toself'
+                        )
+                    ])
+                    stepps_fig.update_layout(
+                        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+                        showlegend=False,
+                        template="plotly_dark"
+                    )
+                    st.plotly_chart(stepps_fig, use_container_width=True)
+
+                with stepps_cols[1]:
+                    st.subheader("Trend Classification")
+                    st.write(sentiment_data['trend_classification']['classification'])
+                    st.progress(sentiment_data['trend_classification']['confidence'])
+            else:
+                st.error("Unable to fetch market data for sentiment analysis.")
+        except Exception as e:
+            st.error(f"Error in sentiment analysis: {str(e)}")
 
     elif ai_section == "Market Driver Insights":
         st.title("Market Driver Analysis")
