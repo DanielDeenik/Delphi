@@ -3,36 +3,60 @@ import requests
 import pandas as pd
 from datetime import datetime
 import time
+import logging
+from ..services.timeseries_storage_service import TimeSeriesStorageService
+
+logger = logging.getLogger(__name__)
 
 class AlphaVantageClient:
-    """Client for fetching market data from Alpha Vantage API"""
+    """Client for fetching market data from Alpha Vantage API with cloud storage integration"""
 
     def __init__(self):
         self.api_key = os.getenv('ALPHA_VANTAGE_API_KEY')
         self.base_url = 'https://www.alphavantage.co/query'
-        self.cache = {}
+        self.storage_service = TimeSeriesStorageService()
 
-    def fetch_daily_adjusted(self, symbol):
-        """Fetch daily adjusted time series data"""
-        params = {
-            'function': 'TIME_SERIES_DAILY_ADJUSTED',
-            'symbol': symbol,
-            'outputsize': 'full',
-            'apikey': self.api_key
-        }
+    def fetch_daily_adjusted(self, symbol, force_refresh=False):
+        """
+        Fetch daily adjusted time series data with cloud storage integration
 
+        Args:
+            symbol: Trading symbol
+            force_refresh: If True, bypass cache and fetch fresh data
+        """
         try:
+            # Check cloud storage first if not forcing refresh
+            if not force_refresh:
+                end_date = datetime.now()
+                start_date = end_date - pd.Timedelta(days=90)  # Last 90 days
+                cached_data = self.storage_service.get_market_data(
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+                if not cached_data.empty:
+                    logger.info(f"Retrieved cached data for {symbol} from cloud storage")
+                    return cached_data
+
+            # Fetch from Alpha Vantage if cache miss or force refresh
+            params = {
+                'function': 'TIME_SERIES_DAILY_ADJUSTED',
+                'symbol': symbol,
+                'outputsize': 'full',
+                'apikey': self.api_key
+            }
+
             response = requests.get(self.base_url, params=params)
             data = response.json()
 
             if 'Time Series (Daily)' not in data:
-                print(f"Error fetching data for {symbol}: {data.get('Note', 'Unknown error')}")
+                logger.error(f"Error fetching data for {symbol}: {data.get('Note', 'Unknown error')}")
                 return None
 
             # Convert to DataFrame
             df = pd.DataFrame.from_dict(data['Time Series (Daily)'], orient='index')
 
-            # Map column names - ensure exact matches with Alpha Vantage response
+            # Map column names
             column_mapping = {
                 '1. open': 'Open',
                 '2. high': 'High',
@@ -47,7 +71,7 @@ class AlphaVantageClient:
             # Check for missing columns
             missing_columns = [col for col in column_mapping.keys() if col not in df.columns]
             if missing_columns:
-                print(f"Warning: Missing columns in API response for {symbol}: {missing_columns}")
+                logger.warning(f"Missing columns in API response for {symbol}: {missing_columns}")
                 return None
 
             # Rename columns
@@ -56,52 +80,56 @@ class AlphaVantageClient:
             # Convert index to datetime
             df.index = pd.to_datetime(df.index)
 
-            # Convert all columns to numeric, replacing any errors with NaN
+            # Convert all columns to numeric
             for col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
             # Forward fill any NaN values
-            df = df.ffill()  # Using ffill() instead of deprecated fillna(method='ffill')
+            df = df.ffill()
 
-            print(f"Successfully fetched data for {symbol}. Shape: {df.shape}")
-            print(f"Columns: {df.columns.tolist()}")
+            logger.info(f"Successfully fetched data for {symbol}. Shape: {df.shape}")
+            logger.info(f"Columns: {df.columns.tolist()}")
 
-            if 'Volume' not in df.columns:
-                print(f"Error: Volume column missing in processed data for {symbol}")
-                return None
+            # Store in cloud storage
+            if self.storage_service.store_market_data(symbol, df):
+                logger.info(f"Successfully stored {symbol} data in cloud storage")
+            else:
+                logger.warning(f"Failed to store {symbol} data in cloud storage")
 
             return df
 
         except Exception as e:
-            print(f"Error fetching data for {symbol}: {str(e)}")
+            logger.error(f"Error fetching data for {symbol}: {str(e)}")
             return None
 
     def get_intraday_data(self, symbol, interval='1min'):
-        """Fetch intraday data with cache management"""
-        cache_key = f"{symbol}_{interval}"
-        now = datetime.now()
-
-        # Check cache
-        if cache_key in self.cache:
-            last_fetch = self.cache[cache_key]['timestamp']
-            if (now - last_fetch).seconds < 60:  # Cache for 1 minute
-                return self.cache[cache_key]['data']
-
-        params = {
-            'function': 'TIME_SERIES_INTRADAY',
-            'symbol': symbol,
-            'interval': interval,
-            'outputsize': 'compact',
-            'apikey': self.api_key
-        }
-
+        """Fetch intraday data with cloud storage integration"""
         try:
+            # Check cloud storage first
+            end_date = datetime.now()
+            start_date = end_date - pd.Timedelta(hours=1)  # Last hour
+            cached_data = self.storage_service.get_market_data(
+                symbol=symbol,
+                start_date=start_date,
+                end_date=end_date
+            )
+            if not cached_data.empty:
+                return cached_data
+
+            params = {
+                'function': 'TIME_SERIES_INTRADAY',
+                'symbol': symbol,
+                'interval': interval,
+                'outputsize': 'compact',
+                'apikey': self.api_key
+            }
+
             response = requests.get(self.base_url, params=params)
             data = response.json()
 
             key = f'Time Series ({interval})'
             if key not in data:
-                print(f"Error fetching intraday data: {data.get('Note', 'Unknown error')}")
+                logger.error(f"Error fetching intraday data: {data.get('Note', 'Unknown error')}")
                 return None
 
             df = pd.DataFrame.from_dict(data[key], orient='index')
@@ -123,14 +151,14 @@ class AlphaVantageClient:
             for col in numeric_columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-            # Update cache
-            self.cache[cache_key] = {
-                'data': df,
-                'timestamp': now
-            }
+            # Store in cloud storage
+            if self.storage_service.store_market_data(symbol, df, partition_size='1H'):
+                logger.info(f"Successfully stored intraday data for {symbol}")
+            else:
+                logger.warning(f"Failed to store intraday data for {symbol}")
 
             return df
 
         except Exception as e:
-            print(f"Error fetching intraday data: {str(e)}")
+            logger.error(f"Error fetching intraday data: {str(e)}")
             return None

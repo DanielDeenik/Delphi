@@ -15,6 +15,19 @@ import numpy as np
 import logging
 import plotly.express as px
 from datetime import datetime, timedelta
+import time
+
+# Add Firebase configuration
+import firebase_admin
+from firebase_admin import credentials, db
+from src.services.timeseries_storage_service import TimeSeriesStorageService
+
+# Initialize Firebase (if not already initialized)
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase-credentials.json")
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'YOUR_DATABASE_URL'
+    })
 
 # Page config must be the first Streamlit command
 st.set_page_config(
@@ -70,6 +83,7 @@ try:
     alpha_vantage = AlphaVantageClient()
     volume_analyzer = VolumeAnalyzer()
     sentiment_service = SentimentAnalysisService()
+    storage_service = TimeSeriesStorageService()
 
     # Sidebar Navigation
     st.sidebar.title("Oracle of Delphi 🏛️")
@@ -336,116 +350,318 @@ try:
         st.plotly_chart(corr_fig, use_container_width=True)
 
     elif volume_section == "Anomaly Detection":
-        # Fetch and process data
-        data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
+        st.title(f"Volume Analysis - {selected_symbol}")
 
-        if data is not None and not data.empty:
-            st.title(f"Volume Analysis - {selected_symbol}")
-
-            # Calculate Z-score for anomaly detection
-            data['volume_z_score'] = (data['Volume'] - data['Volume'].rolling(window=20).mean()) / \
-                                      data['Volume'].rolling(window=20).std()
-            data['is_anomaly'] = data['volume_z_score'].abs() > 2
-
-            # Calculate momentum score
-            data['momentum_score'] = data['Volume'].pct_change(periods=3).fillna(0) * 100
-
-            # Main metrics with tooltips
-            col1, col2, col3 = st.columns(3)
-
-            with col1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="tooltip">Volume Z-Score
-                        <span class="tooltiptext">Statistical measure of volume deviation from the 20-day average</span>
-                    </div>
-                    <h3>{data['volume_z_score'].iloc[-1]:.2f}</h3>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col2:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="tooltip">Momentum Score
-                        <span class="tooltiptext">3-day volume change percentage</span>
-                    </div>
-                    <h3>{data['momentum_score'].iloc[-1]:.1f}%</h3>
-                </div>
-                """, unsafe_allow_html=True)
-
-            with col3:
-                anomaly_status = "ANOMALY DETECTED" if data['is_anomaly'].iloc[-1] else "NORMAL"
-                anomaly_color = "red" if data['is_anomaly'].iloc[-1] else "green"
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div class="tooltip">Volume Status
-                        <span class="tooltiptext">Current volume pattern classification</span>
-                    </div>
-                    <h3 style="color: {anomaly_color}">{anomaly_status}</h3>
-                </div>
-                """, unsafe_allow_html=True)
-
-            # Volume Analysis Chart
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                                vertical_spacing=0.03,
-                                row_heights=[0.7, 0.3])
-
-            # Price chart
-            fig.add_trace(
-                go.Candlestick(
-                    x=data.index,
-                    open=data['Open'],
-                    high=data['High'],
-                    low=data['Low'],
-                    close=data['Close'],
-                    name="Price"
-                ),
-                row=1, col=1
+        try:
+            # Fetch data with cloud storage integration
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=90)  # Last 90 days
+            data = storage_service.get_market_data(
+                symbol=selected_symbol,
+                start_date=start_date,
+                end_date=end_date
             )
 
-            # Volume bars with anomaly highlighting
-            colors = ['red' if is_anomaly else 'blue' for is_anomaly in data['is_anomaly']]
-            fig.add_trace(
-                go.Bar(
-                    x=data.index,
-                    y=data['Volume'],
-                    name="Volume",
-                    marker_color=colors
-                ),
-                row=2, col=1
+            if data.empty:
+                # Fallback to Alpha Vantage API
+                data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
+
+            if data is not None and not data.empty:
+                # Initialize columns for metrics
+                col1, col2, col3 = st.columns(3)
+
+                # Calculate anomaly scores using MLVolumeAnalyzer
+                ml_analyzer = MLVolumeAnalyzer()
+                features, _ = ml_analyzer._extract_advanced_features(data)
+                anomaly_scores = ml_analyzer.anomaly_detector.score_samples(features)
+                data['anomaly_score'] = anomaly_scores
+
+                # Display metrics
+                with col1:
+                    latest_anomaly = anomaly_scores[-1]
+                    anomaly_status = "ANOMALY" if latest_anomaly < -0.5 else "NORMAL"
+                    st.metric(
+                        "Volume Status",
+                        anomaly_status,
+                        delta=f"{latest_anomaly:.2f}",
+                        delta_color="inverse"
+                    )
+
+                with col2:
+                    volume_change = data['Volume'].pct_change().iloc[-1]
+                    st.metric(
+                        "Volume Change",
+                        f"{volume_change:.2%}",
+                        delta=f"{volume_change:.1%}",
+                        delta_color="normal"
+                    )
+
+                with col3:
+                    relative_vol = (data['Volume'] / data['Volume'].rolling(20).mean()).iloc[-1]
+                    st.metric(
+                        "Relative Volume",
+                        f"{relative_vol:.2f}x",
+                        delta=f"{(relative_vol-1):.1%}",
+                        delta_color="normal"
+                    )
+
+                # Create anomaly detection chart
+                fig = make_subplots(
+                    rows=2, cols=1,
+                    shared_xaxes=True,
+                    vertical_spacing=0.03,
+                    subplot_titles=('Price', 'Volume Anomaly Score'),
+                    row_heights=[0.7, 0.3]
+                )
+
+                # Add candlestick chart
+                fig.add_trace(
+                    go.Candlestick(
+                        x=data.index,
+                        open=data['Open'],
+                        high=data['High'],
+                        low=data['Low'],
+                        close=data['Close'],
+                        name="Price"
+                    ),
+                    row=1, col=1
+                )
+
+                # Add volume bars colored by anomaly score
+                colors = ['red' if score < -0.5 else 'blue' for score in anomaly_scores]
+                fig.add_trace(
+                    go.Bar(
+                        x=data.index,
+                        y=data['Volume'],
+                        marker_color=colors,
+                        name="Volume"
+                    ),
+                    row=2, col=1
+                )
+
+                # Update layout
+                fig.update_layout(
+                    height=800,
+                    template="plotly_dark",
+                    showlegend=True,
+                    title=f"Volume Anomaly Detection - {selected_symbol}"
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Add real-time updates section
+                st.subheader("Real-time Updates")
+                if st.checkbox("Enable real-time updates"):
+                    placeholder = st.empty()
+                    while True:
+                        # Update data from Firebase
+                        try:
+                            new_data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
+                            if new_data is not None and not new_data.empty:
+                                with placeholder.container():
+                                    st.metric(
+                                        "Latest Volume",
+                                        f"{new_data['Volume'].iloc[-1]:,.0f}",
+                                        delta=f"{new_data['Volume'].pct_change().iloc[-1]:.1%}"
+                                    )
+                            st.experimental_rerun()
+                        except Exception as e:
+                            st.error(f"Error updating data: {str(e)}")
+                        time.sleep(60)  # Update every minute
+
+        except Exception as e:
+            st.error(f"Error fetching data for Anomaly Detection: {e}")
+
+
+    elif volume_section == "Momentum Forecasting":
+        st.title(f"Volume Momentum Analysis - {selected_symbol}")
+
+        try:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=90)
+            data = storage_service.get_market_data(
+                symbol=selected_symbol,
+                start_date=start_date,
+                end_date=end_date
             )
+            if data.empty:
+                data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
 
-            fig.update_layout(
-                height=600,
-                template="plotly_dark",
-                showlegend=True,
-                title=f"Price and Volume Analysis - {selected_symbol}"
+            if data is not None and not data.empty:
+                # Calculate momentum indicators
+                data['volume_ma5'] = data['Volume'].rolling(window=5).mean()
+                data['volume_ma20'] = data['Volume'].rolling(window=20).mean()
+                data['momentum_score'] = (data['Volume'] - data['volume_ma20']) / data['volume_ma20']
+
+                # Display momentum metrics
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    momentum = data['momentum_score'].iloc[-1]
+                    st.metric(
+                        "Momentum Score",
+                        f"{momentum:.2f}",
+                        delta=f"{(momentum - data['momentum_score'].iloc[-2]):.2f}"
+                    )
+
+                with col2:
+                    trend = "Bullish" if momentum > 0 else "Bearish"
+                    st.metric("Volume Trend", trend)
+
+                # Create momentum chart
+                fig = go.Figure()
+
+                # Add volume bars
+                fig.add_trace(
+                    go.Bar(
+                        x=data.index,
+                        y=data['Volume'],
+                        name="Volume",
+                        opacity=0.3
+                    )
+                )
+
+                # Add moving averages
+                fig.add_trace(
+                    go.Scatter(
+                        x=data.index,
+                        y=data['volume_ma5'],
+                        name="5-day MA",
+                        line=dict(color='orange')
+                    )
+                )
+
+                fig.add_trace(
+                    go.Scatter(
+                        x=data.index,
+                        y=data['volume_ma20'],
+                        name="20-day MA",
+                        line=dict(color='blue')
+                    )
+                )
+
+                # Update layout
+                fig.update_layout(
+                    height=600,
+                    template="plotly_dark",
+                    title=f"Volume Momentum - {selected_symbol}"
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Add momentum distribution
+                st.subheader("Momentum Distribution")
+                fig_dist = go.Figure()
+                fig_dist.add_trace(
+                    go.Histogram(
+                        x=data['momentum_score'].dropna(),
+                        nbinsx=50,
+                        name="Momentum Distribution"
+                    )
+                )
+                fig_dist.update_layout(
+                    height=400,
+                    template="plotly_dark",
+                    title="Momentum Score Distribution"
+                )
+                st.plotly_chart(fig_dist, use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Error fetching data for Momentum Forecasting: {e}")
+
+
+    elif volume_section == "Volume Divergence":
+        st.title(f"Volume Divergence Analysis - {selected_symbol}")
+
+        try:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=90)
+            data = storage_service.get_market_data(
+                symbol=selected_symbol,
+                start_date=start_date,
+                end_date=end_date
             )
+            if data.empty:
+                data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
 
-            st.plotly_chart(fig, use_container_width=True)
+            if data is not None and not data.empty:
+                # Calculate divergence metrics
+                data['price_change'] = data['Close'].pct_change()
+                data['volume_change'] = data['Volume'].pct_change()
+                data['divergence_score'] = (
+                    data['price_change'].rolling(5).corr(data['volume_change'].rolling(5))
+                )
 
-            # Anomaly Table
-            st.subheader("Recent Volume Anomalies")
-            anomalies = data[data['is_anomaly']].tail(5)
-            if not anomalies.empty:
-                anomaly_data = []
-                for idx, row in anomalies.iterrows():
-                    anomaly_data.append({
-                        "Date": idx.strftime("%Y-%m-%d"),
-                        "Volume": f"{row['Volume']:,.0f}",
-                        "Z-Score": f"{row['volume_z_score']:.2f}",
-                        "Momentum": f"{row['momentum_score']:.1f}%"
-                    })
-                st.table(pd.DataFrame(anomaly_data))
-            else:
-                st.info("No recent volume anomalies detected")
+                # Display divergence metrics
+                col1, col2 = st.columns(2)
 
-        else:
-            st.error("Unable to fetch market data. Please try again later.")
+                with col1:
+                    div_score = data['divergence_score'].iloc[-1]
+                    st.metric(
+                        "Divergence Score",
+                        f"{div_score:.2f}",
+                        delta=f"{(div_score - data['divergence_score'].iloc[-2]):.2f}"
+                    )
 
-    elif volume_section in ["Momentum Forecasting", "Volume Divergence"]:
-        st.title(f"Volume Analysis - {volume_section}")
-        st.info("🚧 This feature is coming soon! Stay tuned for advanced volume analytics.")
+                with col2:
+                    signal = "Bullish" if div_score > 0.5 else "Bearish" if div_score < -0.5 else "Neutral"
+                    st.metric("Divergence Signal", signal)
+
+                # Create divergence chart
+                fig = make_subplots(
+                    rows=3, cols=1,
+                    shared_xaxes=True,
+                    vertical_spacing=0.03,
+                    subplot_titles=('Price', 'Volume', 'Divergence Score'),
+                    row_heights=[0.4, 0.3, 0.3]
+                )
+
+                # Add price line
+                fig.add_trace(
+                    go.Scatter(
+                        x=data.index,
+                        y=data['Close'],
+                        name="Price",
+                        line=dict(color='white')
+                    ),
+                    row=1, col=1
+                )
+
+                # Add volume bars
+                fig.add_trace(
+                    go.Bar(
+                        x=data.index,
+                        y=data['Volume'],
+                        name="Volume",
+                        marker_color='blue'
+                    ),
+                    row=2, col=1
+                )
+
+                # Add divergence score
+                fig.add_trace(
+                    go.Scatter(
+                        x=data.index,
+                        y=data['divergence_score'],
+                        name="Divergence",
+                        line=dict(color='yellow')
+                    ),
+                    row=3, col=1
+                )
+
+                # Update layout
+                fig.update_layout(
+                    height=800,
+                    template="plotly_dark",
+                    showlegend=True,
+                    title=f"Volume Divergence Analysis - {selected_symbol}"
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Error fetching data for Volume Divergence: {e}")
+
 
     # Add feedback form at the bottom
     st.markdown("---")

@@ -38,6 +38,9 @@ dependencies = [
     "ratelimit>=2.2.1",
     "keras-rl2>=1.0.5",
     "gym>=0.26.2",
+    "google-cloud-bigquery>=3.29.0",
+    "google-cloud-storage>=3.0.0",
+    "pandas-gbq>=0.26.1",
 ]
 
 [[tool.uv.index]]
