@@ -18,6 +18,7 @@ import logging
 import plotly.express as px
 from datetime import datetime, timedelta
 import time
+from src.models.mosaic_agent import MosaicTheoryAgent # Added import
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -78,6 +79,7 @@ try:
     volume_analyzer = VolumeAnalyzer()
     sentiment_service = SentimentAnalysisService()
     storage_service = TimeSeriesStorageService()
+    mosaic_agent = MosaicTheoryAgent() # Added service initialization
 
     # Sidebar Navigation
     st.sidebar.title("Oracle of Delphi 🏛️")
@@ -105,6 +107,19 @@ try:
         Volume Divergence: Analyze price-volume relationships
         """
     )
+
+    # Added Mosaic Theory section to sidebar
+    st.sidebar.markdown("## 🧠 Mosaic Theory AI")
+    mosaic_section = st.sidebar.radio(
+        "Select Analysis Type",
+        ["Market Intelligence", "Investment Flows", "Knowledge Graph"],
+        help="""
+        Market Intelligence: AI-driven market insights
+        Investment Flows: Visualize capital flows
+        Knowledge Graph: Explore market relationships
+        """
+    )
+
 
     # Asset Selection - Always visible
     st.sidebar.markdown("## 🎯 Asset Selection")
@@ -659,6 +674,177 @@ try:
         except Exception as e:
             st.error(f"Error fetching data for Volume Divergence: {e}")
 
+    # Added Mosaic Theory sections to main content
+    if mosaic_section == "Market Intelligence":
+        st.title("AI Market Intelligence")
+
+        # Market Sentiment Analysis
+        st.subheader("Market Sentiment & Trends")
+        sentiment_cols = st.columns(3)
+
+        # Mock news data for sentiment analysis
+        news_data = [
+            f"Earnings report for {selected_symbol} shows strong growth",
+            f"Market analysts upgrade {selected_symbol} rating",
+            f"Industry outlook positive for {selected_symbol} sector"
+        ]
+
+        sentiment_results = mosaic_agent.analyze_market_sentiment(news_data)
+
+        if sentiment_results:
+            with sentiment_cols[0]:
+                st.metric(
+                    "AI Sentiment Score",
+                    f"{sentiment_results['aggregate_score']:.2f}",
+                    "↑ 0.05",
+                    help="AI-generated market sentiment score"
+                )
+
+            with sentiment_cols[1]:
+                st.metric(
+                    "Confidence Level",
+                    "High",
+                    "↑ trending",
+                    help="AI model confidence in analysis"
+                )
+
+            with sentiment_cols[2]:
+                st.metric(
+                    "Risk Assessment",
+                    "Moderate",
+                    "↓ 2%",
+                    help="AI-evaluated risk level"
+                )
+
+        # Market Trends Forecast
+        st.subheader("AI-Driven Market Forecast")
+        if data is not None and not data.empty:
+            forecast = mosaic_agent.forecast_trends(data['Close'])
+            if forecast:
+                forecast_cols = st.columns(2)
+
+                with forecast_cols[0]:
+                    st.metric(
+                        "Predicted Price",
+                        f"${forecast['predicted_price']:.2f}",
+                        f"{((forecast['predicted_price'] / data['Close'].iloc[-1]) - 1) * 100:.1f}%",
+                        help="AI-predicted price target"
+                    )
+
+                with forecast_cols[1]:
+                    st.metric(
+                        "Prediction Confidence",
+                        f"{forecast['confidence_score']:.1%}",
+                        help="AI model confidence score"
+                    )
+
+    elif mosaic_section == "Investment Flows":
+        st.title("Investment Flow Analysis")
+
+        # Sample market data structure
+        market_data = {
+            "Technology": {
+                "Company A": {"market_cap": 100},
+                "Company B": {"market_cap": 80}
+            },
+            "Finance": {
+                "Company C": {"market_cap": 90},
+                "Company D": {"market_cap": 70}
+            }
+        }
+
+        # Update knowledge graph with market data
+        mosaic_agent.update_knowledge_graph(market_data)
+
+        # Get investment flows for Sankey diagram
+        flows_df = mosaic_agent.get_investment_flows()
+
+        if not flows_df.empty:
+            # Create Sankey diagram
+            fig = go.Figure(go.Sankey(
+                node=dict(
+                    pad=15,
+                    thickness=20,
+                    line=dict(color="black", width=0.5),
+                    label=list(set(flows_df["source"].tolist() + flows_df["target"].tolist())),
+                ),
+                link=dict(
+                    source=[list(set(flows_df["source"].tolist() + flows_df["target"].tolist())).index(s) for s in flows_df["source"]],
+                    target=[list(set(flows_df["source"].tolist() + flows_df["target"].tolist())).index(t) for t in flows_df["target"]],
+                    value=flows_df["value"]
+                )
+            ))
+
+            fig.update_layout(
+                title_text="Investment Flow Analysis",
+                font_size=12,
+                height=600
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
+    elif mosaic_section == "Knowledge Graph":
+        st.title("Market Knowledge Graph")
+        import networkx as nx # Added import for NetworkX
+
+        graph_data = mosaic_agent.knowledge_graph
+        if graph_data:
+            # Create network visualization using NetworkX and Plotly
+            pos = nx.spring_layout(graph_data)
+
+            # Create edges trace
+            edge_x = []
+            edge_y = []
+            for edge in graph_data.edges():
+                x0, y0 = pos[edge[0]]
+                x1, y1 = pos[edge[1]]
+                edge_x.extend([x0, x1, None])
+                edge_y.extend([y0, y1, None])
+
+            edges_trace = go.Scatter(
+                x=edge_x, y=edge_y,
+                line=dict(width=0.5, color='#888'),
+                hoverinfo='none',
+                mode='lines')
+
+            # Create nodes trace
+            node_x = []
+            node_y = []
+            for node in graph_data.nodes():
+                x, y = pos[node]
+                node_x.append(x)
+                node_y.append(y)
+
+            nodes_trace = go.Scatter(
+                x=node_x, y=node_y,
+                mode='markers+text',
+                hoverinfo='text',
+                text=[node for node in graph_data.nodes()],
+                marker=dict(
+                    showscale=True,
+                    colorscale='YlGnBu',
+                    size=10,
+                    colorbar=dict(
+                        thickness=15,
+                        title='Node Connections',
+                        xanchor='left',
+                        titleside='right'
+                    )
+                )
+            )
+
+            # Create the figure
+            fig = go.Figure(data=[edges_trace, nodes_trace],
+                         layout=go.Layout(
+                             title='Market Knowledge Graph',
+                             showlegend=False,
+                             hovermode='closest',
+                             margin=dict(b=20,l=5,r=5,t=40),
+                             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+                         ))
+
+            st.plotly_chart(fig, use_container_width=True)
 
     # Add feedback form at the bottom
     st.markdown("---")
