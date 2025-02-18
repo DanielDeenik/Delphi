@@ -1,0 +1,56 @@
+# ------------------------------------------------------
+# CREATE TABS (Home, Settings, Caching & Performance, Watchlist)
+# ------------------------------------------------------
+tabs = ["Home", "Settings", "Caching & Performance", "Watchlist"]
+tab_home, tab_settings, tab_caching, tab_watchlist = st.tabs(tabs)
+
+# -------------------- HOME TAB --------------------
+with tab_home:
+    st.title("Financial Intelligence Dashboard")
+    st.write("**Empowering data-driven decisions** through advanced analytics, cutting-edge AI, and a modern UI.")
+    st.write("Welcome to the next generation of financial intelligence, leveraging Streamlit for rapid prototyping.")
+
+# ------------------ SETTINGS TAB ------------------
+with tab_settings:
+    st.header("Application Settings")
+    st.write("Configure your dashboard preferences, data sources, and model parameters.")
+
+    # Example settings controls
+    theme_choice = st.selectbox("Select Theme", ["Dark", "Light"], index=0)
+    default_symbol = st.text_input("Default Symbol", value="AAPL")
+    model_update_interval = st.slider("Model Update Interval (minutes)", 5, 60, 15)
+    advanced_features = st.checkbox("Enable Advanced AI Features", value=True)
+
+    # Apply/Save button
+    if st.button("Apply Settings"):
+        st.success(
+            f"Settings Updated:\n"
+            f"- Theme: {theme_choice}\n"
+            f"- Default Symbol: {default_symbol}\n"
+            f"- Update Interval: {model_update_interval}min\n"
+            f"- Advanced AI: {advanced_features}"
+        )
+
+# ----------------- CACHING TAB -------------------
+with tab_caching:
+    st.header("Caching & Performance Optimization")
+    st.write("""
+        Explore how **Streamlit’s caching** can significantly speed up data retrieval, 
+        modeling, and user interactions by storing results of expensive computations.
+    """)
+    st.markdown("""
+    - **@st.cache_data**: Caches data loading (e.g., from APIs or databases).  
+    - **@st.cache_resource**: Ideal for caching resources like ML models or DB connections.  
+    - **Performance Gains**: Faster load times, especially when accessing the same data repeatedly.  
+    """)
+
+    with st.expander("Example of Cached Fetch"):
+        st.code("""
+@st.cache_data
+def fetch_data():
+    time.sleep(2)  # Simulate a slow API call
+    return pd.DataFrame(...)
+        """, language="python")
+        st.write("Any subsequent calls to `fetch_data()` reuse the cached output, skipping the 2-second delay.")
+
+# ----------------- WATCHLIST TAB -----------------
