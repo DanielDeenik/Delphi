@@ -11,8 +11,7 @@ pip install streamlit plotly pandas numpy scikit-learn tensorflow-cpu google-clo
 ```bash
 # Required for market data
 export ALPHA_VANTAGE_API_KEY=your_api_key
-
-# Required for cloud storage (when deploying to Google Cloud)
+# Required for cloud storage
 export GOOGLE_CLOUD_PROJECT=your_project_id
 ```
 
@@ -25,36 +24,80 @@ streamlit run app.py
 
 The application will be available at `http://localhost:5000`
 
+## Docker Development
+
+1. Build the Docker image:
+```bash
+docker build -t rag-analysis:latest .
+```
+
+2. Run the container locally:
+```bash
+docker run -p 8080:8080 \
+  -e ALPHA_VANTAGE_API_KEY=your_key \
+  -e GOOGLE_CLOUD_PROJECT=your_project \
+  rag-analysis:latest
+```
+
 ## Google Cloud Deployment
 
-1. Install Google Cloud SDK:
-- Follow instructions at https://cloud.google.com/sdk/docs/install
+1. Install Google Cloud SDK and kubectl:
+```bash
+# Install Google Cloud SDK
+curl https://sdk.cloud.google.com | bash
+# Install kubectl
+gcloud components install kubectl
+```
 
-2. Initialize Google Cloud project:
+2. Configure Google Cloud:
 ```bash
 gcloud init
 gcloud config set project YOUR_PROJECT_ID
+gcloud auth configure-docker
 ```
 
 3. Enable required APIs:
 ```bash
+gcloud services enable container.googleapis.com
+gcloud services enable containerregistry.googleapis.com
 gcloud services enable bigquery.googleapis.com
 gcloud services enable storage.googleapis.com
 ```
 
-4. Set up BigQuery dataset and Storage bucket:
+4. Create GKE cluster:
 ```bash
-# Create BigQuery dataset
-bq mk --dataset market_data
-
-# Create Cloud Storage bucket
-gsutil mb gs://market_data_cold_storage
+gcloud container clusters create rag-analysis-cluster \
+  --num-nodes=3 \
+  --machine-type=e2-standard-2 \
+  --region=us-central1
 ```
 
-5. Deploy the application:
+5. Build and push Docker image:
 ```bash
-gcloud app deploy app.yaml
+docker build -t gcr.io/${GOOGLE_CLOUD_PROJECT}/rag-analysis:latest .
+docker push gcr.io/${GOOGLE_CLOUD_PROJECT}/rag-analysis:latest
 ```
+
+6. Create secrets:
+```bash
+kubectl create secret generic api-secrets \
+  --from-literal=openai-api-key=$OPENAI_API_KEY \
+  --from-literal=alpha-vantage-api-key=$ALPHA_VANTAGE_API_KEY \
+  --from-literal=google-cloud-project=$GOOGLE_CLOUD_PROJECT
+```
+
+7. Deploy to Kubernetes:
+```bash
+kubectl apply -f k8s/rag-analysis-deployment.yaml
+```
+
+8. Monitor deployment:
+```bash
+kubectl get pods
+kubectl get services
+```
+
+The LoadBalancer service will provide an external IP for accessing the application.
 
 ## Project Structure
 
