@@ -3,6 +3,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+from functools import lru_cache
 from src.models.volume_analyzer import VolumeAnalyzer
 from src.data.alpha_vantage_client import AlphaVantageClient
 from src import RAGVolumeAnalyzer
@@ -18,7 +19,7 @@ import logging
 import plotly.express as px
 from datetime import datetime, timedelta
 import time
-from src.models.mosaic_agent import MosaicTheoryAgent # Added import
+from src.models.mosaic_agent import MosaicTheoryAgent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,49 +30,77 @@ st.set_page_config(
     page_title="Oracle of Delphi - Financial Intelligence",
     page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/yourusername/project',
+        'Report a bug': "https://github.com/yourusername/project/issues",
+        'About': "# Oracle of Delphi 🏛️\nAdvanced Financial Intelligence Platform"
+    }
 )
 
-# Custom CSS for better UI
+# Custom CSS for modern UI
 st.markdown("""
 <style>
-    .tooltip {
-        position: relative;
-        display: inline-block;
-        border-bottom: 1px dotted #666;
-        cursor: help;
+    .main {
+        background-color: #f8f9fa;
     }
-    .tooltip .tooltiptext {
-        visibility: hidden;
-        width: 200px;
-        background-color: #555;
-        color: #fff;
-        text-align: center;
-        border-radius: 6px;
-        padding: 5px;
-        position: absolute;
-        z-index: 1;
-        bottom: 125%;
-        left: 50%;
-        margin-left: -100px;
-        opacity: 0;
-        transition: opacity 0.3s;
+    .stButton>button {
+        background-color: #2e3440;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        border: none;
+        transition: all 0.3s ease;
     }
-    .tooltip:hover .tooltiptext {
-        visibility: visible;
-        opacity: 1;
+    .stButton>button:hover {
+        background-color: #3b4252;
+        transform: translateY(-2px);
     }
     .metric-card {
-        padding: 1rem;
-        border-radius: 0.5rem;
-        background: rgba(0, 0, 0, 0.1);
+        background-color: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         margin-bottom: 1rem;
     }
-    .sidebar-section {
-        margin-bottom: 2rem;
+    .sidebar .sidebar-content {
+        background-color: #2e3440;
+    }
+    .sidebar-text {
+        color: white !important;
+    }
+    h1, h2, h3 {
+        color: #2e3440;
+        font-weight: 600;
+    }
+    .stPlotlyChart {
+        background-color: white;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Cache data fetching
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def fetch_market_data(symbol: str, start_date: datetime, end_date: datetime):
+    try:
+        data = storage_service.get_market_data(symbol=symbol, start_date=start_date, end_date=end_date)
+        if data.empty:
+            data = alpha_vantage.fetch_daily_adjusted(symbol)
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching market data: {e}")
+        return None
+
+@st.cache_data(ttl=600)  # Cache for 10 minutes
+def get_sentiment_analysis(symbol: str):
+    try:
+        return sentiment_service.get_sentiment_analysis(symbol)
+    except Exception as e:
+        logger.error(f"Error getting sentiment analysis: {e}")
+        return None
 
 try:
     # Initialize services
@@ -79,56 +108,43 @@ try:
     volume_analyzer = VolumeAnalyzer()
     sentiment_service = SentimentAnalysisService()
     storage_service = TimeSeriesStorageService()
-    mosaic_agent = MosaicTheoryAgent() # Added service initialization
+    mosaic_agent = MosaicTheoryAgent()
 
-    # Sidebar Navigation
-    st.sidebar.title("Oracle of Delphi 🏛️")
+    # Modern sidebar navigation with icons
+    st.sidebar.markdown('<h1 class="sidebar-text">🏛️ Oracle of Delphi</h1>', unsafe_allow_html=True)
 
-    # AI Assessments Section
-    st.sidebar.markdown("## 🤖 AI Assessments")
+    # AI Assessments Section with modern styling
+    st.sidebar.markdown('<h2 class="sidebar-text">🤖 AI Assessments</h2>', unsafe_allow_html=True)
     ai_section = st.sidebar.radio(
-        "Select Analysis Type",
-        ["Earnings Analysis", "Sentiment Trends", "Market Driver Insights"],
-        help="""
-        Earnings Analysis: Identify key earnings drivers
-        Sentiment Trends: Analyze market sentiment patterns
-        Market Driver Insights: Discover key market influencers
-        """
+        "",  # Empty label for cleaner look
+        ["📊 Earnings Analysis", "📈 Sentiment Trends", "🔍 Market Driver Insights"],
+        key="ai_section"
     )
 
     # Volume Indicators Section
-    st.sidebar.markdown("## 📈 Volume Indicators")
+    st.sidebar.markdown('<h2 class="sidebar-text">📈 Volume Indicators</h2>', unsafe_allow_html=True)
     volume_section = st.sidebar.radio(
-        "Select Volume Analysis",
-        ["Anomaly Detection", "Momentum Forecasting", "Volume Divergence"],
-        help="""
-        Anomaly Detection: Identify unusual volume patterns
-        Momentum Forecasting: Predict volume trends
-        Volume Divergence: Analyze price-volume relationships
-        """
+        "",
+        ["🔍 Anomaly Detection", "📈 Momentum Forecasting", "↔️ Volume Divergence"],
+        key="volume_section"
     )
 
-    # Added Mosaic Theory section to sidebar
-    st.sidebar.markdown("## 🧠 Mosaic Theory AI")
+    # Mosaic Theory Section
+    st.sidebar.markdown('<h2 class="sidebar-text">🧠 Mosaic Theory AI</h2>', unsafe_allow_html=True)
     mosaic_section = st.sidebar.radio(
-        "Select Analysis Type",
-        ["Market Intelligence", "Investment Flows", "Knowledge Graph"],
-        help="""
-        Market Intelligence: AI-driven market insights
-        Investment Flows: Visualize capital flows
-        Knowledge Graph: Explore market relationships
-        """
+        "",
+        ["🎯 Market Intelligence", "💹 Investment Flows", "🕸️ Knowledge Graph"],
+        key="mosaic_section"
     )
 
-
-    # Asset Selection - Always visible
-    st.sidebar.markdown("## 🎯 Asset Selection")
+    # Asset Selection with modern dropdown
+    st.sidebar.markdown('<h2 class="sidebar-text">🎯 Asset Selection</h2>', unsafe_allow_html=True)
     selected_category = st.sidebar.selectbox(
-        "Asset Category",
-        ["US Stocks", "International", "Crypto"]
+        "",
+        ["US Stocks", "International", "Crypto"],
+        key="asset_category"
     )
 
-    # Symbol Selection
     symbols = {
         "US Stocks": {
             "AAPL": "Apple Inc.",
@@ -160,13 +176,14 @@ try:
 
     symbol_options = symbols[selected_category]
     selected_symbol = st.sidebar.selectbox(
-        "Select Asset",
+        "",
         options=list(symbol_options.keys()),
         format_func=lambda x: f"{x} - {symbol_options[x]}"
     )
 
+
     # Main Content Area for AI Assessments
-    if ai_section == "Earnings Analysis":
+    if ai_section == "📊 Earnings Analysis":
         st.title("Earnings Analysis")
 
         # Date range selector
@@ -188,26 +205,35 @@ try:
 
             # Mock earnings metrics (replace with real data integration)
             with metrics_cols[0]:
-                st.metric(
-                    "Latest EPS Surprise",
-                    "+$0.15",
-                    "+12%",
-                    help="Difference between actual and estimated EPS"
-                )
+                with st.container():
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric(
+                        "Latest EPS Surprise",
+                        "+$0.15",
+                        "+12%",
+                        help="Difference between actual and estimated EPS"
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
             with metrics_cols[1]:
-                st.metric(
-                    "Revenue Growth",
-                    "8.5%",
-                    "+2.3%",
-                    help="Year-over-year revenue growth"
-                )
+                with st.container():
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric(
+                        "Revenue Growth",
+                        "8.5%",
+                        "+2.3%",
+                        help="Year-over-year revenue growth"
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
             with metrics_cols[2]:
-                st.metric(
-                    "Analyst Consensus",
-                    "Buy",
-                    "↑ 2 upgrades",
-                    help="Overall analyst recommendation"
-                )
+                with st.container():
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric(
+                        "Analyst Consensus",
+                        "Buy",
+                        "↑ 2 upgrades",
+                        help="Overall analyst recommendation"
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
 
             # Earnings Trend Chart
             st.subheader("Historical Earnings Trends")
@@ -237,7 +263,7 @@ try:
             )
             st.plotly_chart(earnings_fig, use_container_width=True)
 
-    elif ai_section == "Sentiment Trends":
+    elif ai_section == "📈 Sentiment Trends":
         st.title("Sentiment Analysis")
 
         try:
@@ -246,35 +272,44 @@ try:
 
             if data is not None and not data.empty:
                 # Get sentiment data
-                sentiment_data = sentiment_service.get_sentiment_analysis(selected_symbol)
+                sentiment_data = get_sentiment_analysis(selected_symbol)
 
                 # Sentiment Overview
                 st.subheader("Sentiment Overview")
                 sent_cols = st.columns(3)
 
                 with sent_cols[0]:
-                    sentiment_score = sentiment_data['sentiment_metrics']['overall_score']
-                    st.metric(
-                        "Overall Sentiment",
-                        f"{sentiment_score:.2f}",
-                        f"{sentiment_data['sentiment_metrics']['sentiment_change_24h']:.1%}",
-                        help="Aggregated sentiment score from multiple sources"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        sentiment_score = sentiment_data['sentiment_metrics']['overall_score']
+                        st.metric(
+                            "Overall Sentiment",
+                            f"{sentiment_score:.2f}",
+                            f"{sentiment_data['sentiment_metrics']['sentiment_change_24h']:.1%}",
+                            help="Aggregated sentiment score from multiple sources"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 with sent_cols[1]:
-                    st.metric(
-                        "Social Media Buzz",
-                        "High",
-                        "↑ 15%",
-                        help="Social media mention volume"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        st.metric(
+                            "Social Media Buzz",
+                            "High",
+                            "↑ 15%",
+                            help="Social media mention volume"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 with sent_cols[2]:
-                    st.metric(
-                        "Viral Coefficient",
-                        f"{sentiment_data['sentiment_metrics']['viral_coefficient']:.2f}",
-                        help="Measure of content virality"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        st.metric(
+                            "Viral Coefficient",
+                            f"{sentiment_data['sentiment_metrics']['viral_coefficient']:.2f}",
+                            help="Measure of content virality"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 # STEPPS Framework Analysis
                 st.subheader("STEPPS Framework Analysis")
@@ -313,7 +348,7 @@ try:
         except Exception as e:
             st.error(f"Error in sentiment analysis: {str(e)}")
 
-    elif ai_section == "Market Driver Insights":
+    elif ai_section == "🔍 Market Driver Insights":
         st.title("Market Driver Analysis")
 
         # Market Impact Factors
@@ -321,26 +356,35 @@ try:
         impact_cols = st.columns(3)
 
         with impact_cols[0]:
-            st.metric(
-                "Interest Rate Impact",
-                "Moderate",
-                "-2.3%",
-                help="Effect of interest rate changes"
-            )
+            with st.container():
+                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                st.metric(
+                    "Interest Rate Impact",
+                    "Moderate",
+                    "-2.3%",
+                    help="Effect of interest rate changes"
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
         with impact_cols[1]:
-            st.metric(
-                "Sector Momentum",
-                "Strong",
-                "+5.1%",
-                help="Industry sector performance"
-            )
+            with st.container():
+                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                st.metric(
+                    "Sector Momentum",
+                    "Strong",
+                    "+5.1%",
+                    help="Industry sector performance"
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
         with impact_cols[2]:
-            st.metric(
-                "Market Sentiment",
-                "Bullish",
-                "↑ trending",
-                help="Overall market sentiment"
-            )
+            with st.container():
+                st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                st.metric(
+                    "Market Sentiment",
+                    "Bullish",
+                    "↑ trending",
+                    help="Overall market sentiment"
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
 
         # Market Correlation Analysis
         st.subheader("Market Correlations")
@@ -366,22 +410,14 @@ try:
         )
         st.plotly_chart(corr_fig, use_container_width=True)
 
-    elif volume_section == "Anomaly Detection":
+    elif volume_section == "🔍 Anomaly Detection":
         st.title(f"Volume Analysis - {selected_symbol}")
 
         try:
             # Fetch data with cloud storage integration
             end_date = datetime.now()
             start_date = end_date - timedelta(days=90)  # Last 90 days
-            data = storage_service.get_market_data(
-                symbol=selected_symbol,
-                start_date=start_date,
-                end_date=end_date
-            )
-
-            if data.empty:
-                # Fallback to Alpha Vantage API
-                data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
+            data = fetch_market_data(selected_symbol, start_date, end_date)
 
             if data is not None and not data.empty:
                 # Initialize columns for metrics
@@ -395,32 +431,41 @@ try:
 
                 # Display metrics
                 with col1:
-                    latest_anomaly = anomaly_scores[-1]
-                    anomaly_status = "ANOMALY" if latest_anomaly < -0.5 else "NORMAL"
-                    st.metric(
-                        "Volume Status",
-                        anomaly_status,
-                        delta=f"{latest_anomaly:.2f}",
-                        delta_color="inverse"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        latest_anomaly = anomaly_scores[-1]
+                        anomaly_status = "ANOMALY" if latest_anomaly < -0.5 else "NORMAL"
+                        st.metric(
+                            "Volume Status",
+                            anomaly_status,
+                            delta=f"{latest_anomaly:.2f}",
+                            delta_color="inverse"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 with col2:
-                    volume_change = data['Volume'].pct_change().iloc[-1]
-                    st.metric(
-                        "Volume Change",
-                        f"{volume_change:.2%}",
-                        delta=f"{volume_change:.1%}",
-                        delta_color="normal"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        volume_change = data['Volume'].pct_change().iloc[-1]
+                        st.metric(
+                            "Volume Change",
+                            f"{volume_change:.2%}",
+                            delta=f"{volume_change:.1%}",
+                            delta_color="normal"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 with col3:
-                    relative_vol = (data['Volume'] / data['Volume'].rolling(20).mean()).iloc[-1]
-                    st.metric(
-                        "Relative Volume",
-                        f"{relative_vol:.2f}x",
-                        delta=f"{(relative_vol-1):.1%}",
-                        delta_color="normal"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        relative_vol = (data['Volume'] / data['Volume'].rolling(20).mean()).iloc[-1]
+                        st.metric(
+                            "Relative Volume",
+                            f"{relative_vol:.2f}x",
+                            delta=f"{(relative_vol-1):.1%}",
+                            delta_color="normal"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 # Create anomaly detection chart
                 fig = make_subplots(
@@ -485,19 +530,13 @@ try:
         except Exception as e:
             st.error(f"Error fetching data for Anomaly Detection: {e}")
 
-    elif volume_section == "Momentum Forecasting":
+    elif volume_section == "📈 Momentum Forecasting":
         st.title(f"Volume Momentum Analysis - {selected_symbol}")
 
         try:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=90)
-            data = storage_service.get_market_data(
-                symbol=selected_symbol,
-                start_date=start_date,
-                end_date=end_date
-            )
-            if data.empty:
-                data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
+            data = fetch_market_data(selected_symbol, start_date, end_date)
 
             if data is not None and not data.empty:
                 # Calculate momentum indicators
@@ -509,16 +548,22 @@ try:
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    momentum = data['momentum_score'].iloc[-1]
-                    st.metric(
-                        "Momentum Score",
-                        f"{momentum:.2f}",
-                        delta=f"{(momentum - data['momentum_score'].iloc[-2]):.2f}"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        momentum = data['momentum_score'].iloc[-1]
+                        st.metric(
+                            "Momentum Score",
+                            f"{momentum:.2f}",
+                            delta=f"{(momentum - data['momentum_score'].iloc[-2]):.2f}"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 with col2:
-                    trend = "Bullish" if momentum > 0 else "Bearish"
-                    st.metric("Volume Trend", trend)
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        trend = "Bullish" if momentum > 0 else "Bearish"
+                        st.metric("Volume Trend", trend)
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 # Create momentum chart
                 fig = go.Figure()
@@ -582,19 +627,13 @@ try:
             st.error(f"Error fetching data for Momentum Forecasting: {e}")
 
 
-    elif volume_section == "Volume Divergence":
+    elif volume_section == "↔️ Volume Divergence":
         st.title(f"Volume Divergence Analysis - {selected_symbol}")
 
         try:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=90)
-            data = storage_service.get_market_data(
-                symbol=selected_symbol,
-                start_date=start_date,
-                end_date=end_date
-            )
-            if data.empty:
-                data = alpha_vantage.fetch_daily_adjusted(selected_symbol)
+            data = fetch_market_data(selected_symbol, start_date, end_date)
 
             if data is not None and not data.empty:
                 # Calculate divergence metrics
@@ -608,16 +647,22 @@ try:
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    div_score = data['divergence_score'].iloc[-1]
-                    st.metric(
-                        "Divergence Score",
-                        f"{div_score:.2f}",
-                        delta=f"{(div_score - data['divergence_score'].iloc[-2]):.2f}"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        div_score = data['divergence_score'].iloc[-1]
+                        st.metric(
+                            "Divergence Score",
+                            f"{div_score:.2f}",
+                            delta=f"{(div_score - data['divergence_score'].iloc[-2]):.2f}"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 with col2:
-                    signal = "Bullish" if div_score > 0.5 else "Bearish" if div_score < -0.5 else "Neutral"
-                    st.metric("Divergence Signal", signal)
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        signal = "Bullish" if div_score > 0.5 else "Bearish" if div_score < -0.5 else "Neutral"
+                        st.metric("Divergence Signal", signal)
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 # Create divergence chart
                 fig = make_subplots(
@@ -675,7 +720,7 @@ try:
             st.error(f"Error fetching data for Volume Divergence: {e}")
 
     # Added Mosaic Theory sections to main content
-    if mosaic_section == "Market Intelligence":
+    if mosaic_section == "🎯 Market Intelligence":
         st.title("AI Market Intelligence")
 
         # Market Sentiment Analysis
@@ -693,28 +738,37 @@ try:
 
         if sentiment_results:
             with sentiment_cols[0]:
-                st.metric(
-                    "AI Sentiment Score",
-                    f"{sentiment_results['aggregate_score']:.2f}",
-                    "↑ 0.05",
-                    help="AI-generated market sentiment score"
-                )
+                with st.container():
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric(
+                        "AI Sentiment Score",
+                        f"{sentiment_results['aggregate_score']:.2f}",
+                        "↑ 0.05",
+                        help="AI-generated market sentiment score"
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
 
             with sentiment_cols[1]:
-                st.metric(
-                    "Confidence Level",
-                    "High",
-                    "↑ trending",
-                    help="AI model confidence in analysis"
-                )
+                with st.container():
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric(
+                        "Confidence Level",
+                        "High",
+                        "↑ trending",
+                        help="AI model confidence in analysis"
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
 
             with sentiment_cols[2]:
-                st.metric(
-                    "Risk Assessment",
-                    "Moderate",
-                    "↓ 2%",
-                    help="AI-evaluated risk level"
-                )
+                with st.container():
+                    st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                    st.metric(
+                        "Risk Assessment",
+                        "Moderate",
+                        "↓ 2%",
+                        help="AI-evaluated risk level"
+                    )
+                    st.markdown('</div>', unsafe_allow_html=True)
 
         # Market Trends Forecast
         st.subheader("AI-Driven Market Forecast")
@@ -724,21 +778,27 @@ try:
                 forecast_cols = st.columns(2)
 
                 with forecast_cols[0]:
-                    st.metric(
-                        "Predicted Price",
-                        f"${forecast['predicted_price']:.2f}",
-                        f"{((forecast['predicted_price'] / data['Close'].iloc[-1]) - 1) * 100:.1f}%",
-                        help="AI-predicted price target"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        st.metric(
+                            "Predicted Price",
+                            f"${forecast['predicted_price']:.2f}",
+                            f"{((forecast['predicted_price'] / data['Close'].iloc[-1]) - 1) * 100:.1f}%",
+                            help="AI-predicted price target"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
                 with forecast_cols[1]:
-                    st.metric(
-                        "Prediction Confidence",
-                        f"{forecast['confidence_score']:.1%}",
-                        help="AI model confidence score"
-                    )
+                    with st.container():
+                        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+                        st.metric(
+                            "Prediction Confidence",
+                            f"{forecast['confidence_score']:.1%}",
+                            help="AI model confidence score"
+                        )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
-    elif mosaic_section == "Investment Flows":
+    elif mosaic_section == "💹 Investment Flows":
         st.title("Investment Flow Analysis")
 
         # Sample market data structure
@@ -783,9 +843,9 @@ try:
 
             st.plotly_chart(fig, use_container_width=True)
 
-    elif mosaic_section == "Knowledge Graph":
+    elif mosaic_section == "🕸️ Knowledge Graph":
         st.title("Market Knowledge Graph")
-        import networkx as nx # Added import for NetworkX
+        import networkx as nx
 
         graph_data = mosaic_agent.knowledge_graph
         if graph_data:
@@ -828,21 +888,20 @@ try:
                         thickness=15,
                         title='Node Connections',
                         xanchor='left',
-                        titleside='right'
-                    )
+                        titleside='right'                    )
                 )
             )
 
             # Create the figure
             fig = go.Figure(data=[edges_trace, nodes_trace],
-                         layout=go.Layout(
-                             title='Market Knowledge Graph',
-                             showlegend=False,
-                             hovermode='closest',
-                             margin=dict(b=20,l=5,r=5,t=40),
-                             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-                         ))
+                             layout=go.Layout(
+                                 title='Market Knowledge Graph',
+                                 showlegend=False,
+                                 hovermode='closest',
+                                 margin=dict(b=20,l=5,r=5,t=40),
+                                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+                             ))
 
             st.plotly_chart(fig, use_container_width=True)
 
