@@ -16,6 +16,10 @@ from datetime import datetime, timedelta
 import time
 import json
 
+# Import services
+from src.services.sentiment_analysis_service import SentimentAnalysisService
+from src.services.timeseries_storage_service import TimeSeriesStorageService
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
