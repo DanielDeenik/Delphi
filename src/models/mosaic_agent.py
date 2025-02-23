@@ -16,6 +16,22 @@ class MosaicTheoryAgent:
         self.sentiment_analyzer = pipeline("sentiment-analysis")
         self.lstm_model = self._build_lstm_model()
         self.knowledge_graph = nx.DiGraph()
+        self.social_arbitrage = SocialArbitrageAgent()
+        
+    def analyze_social_trends(self, symbol, keyword):
+        """Analyze social trends for potential arbitrage opportunities"""
+        trend_data = self.social_arbitrage.analyze_google_trends(keyword)
+        if trend_data:
+            sentiment_data = self.social_arbitrage.analyze_social_sentiment(keyword)
+            trend_data['sentiment'] = sentiment_data
+            
+            is_valid = self.social_arbitrage.validate_trend(keyword, trend_data)
+            return {
+                'trend_data': trend_data,
+                'is_valid_opportunity': is_valid,
+                'confidence_score': trend_data['trend_momentum'] * sentiment_data['combined_score']
+            }
+        return None
         
     def _build_lstm_model(self):
         """Build LSTM model for market trend forecasting"""
