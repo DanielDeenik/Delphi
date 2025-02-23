@@ -2588,6 +2588,7 @@ dependencies = [
     { name = "dask", extra = ["distributed"] },
     { name = "databutton" },
     { name = "faiss-cpu" },
+    { name = "fastapi" },
     { name = "firebase-admin" },
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-storage" },
@@ -2620,6 +2621,7 @@ dependencies = [
     { name = "transformers" },
     { name = "tweepy" },
     { name = "twilio" },
+    { name = "uvicorn" },
     { name = "vadersentiment" },
     { name = "xgboost" },
     { name = "yfinance" },
@@ -2632,6 +2634,7 @@ requires-dist = [
     { name = "dask", extras = ["distributed"], specifier = ">=2025.1.0" },
     { name = "databutton", specifier = ">=0.38.37" },
     { name = "faiss-cpu", specifier = ">=1.10.0" },
+    { name = "fastapi", specifier = ">=0.115.8" },
     { name = "firebase-admin", specifier = ">=6.6.0" },
     { name = "google-cloud-bigquery", specifier = ">=3.29.0" },
     { name = "google-cloud-storage", specifier = ">=3.0.0" },
@@ -2664,6 +2667,7 @@ requires-dist = [
     { name = "transformers", specifier = "==4.36.2" },
     { name = "tweepy", specifier = ">=4.15.0" },
     { name = "twilio", specifier = ">=9.4.4" },
+    { name = "uvicorn", specifier = ">=0.34.0" },
     { name = "vadersentiment", specifier = ">=3.3.2" },
     { name = "xgboost", specifier = ">=2.1.3" },
     { name = "yfinance", specifier = ">=0.2.52" },
@@ -3597,6 +3601,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e4/e8/6ff5e6bc22095cfc59b6ea711b687e2b7ed4bdb373f7eeec370a97d7392f/urllib3-1.26.20.tar.gz", hash = "sha256:40c2dc0c681e47eb8f90e7e27bf6ff7df2e677421fd46756da1161c39ca70d32", size = 307380 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/cf/8435d5a7159e2a9c83a95896ed596f68cf798005fe107cc655b5c5c14704/urllib3-1.26.20-py2.py3-none-any.whl", hash = "sha256:0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e", size = 144225 },
+]
+
+[[package]]
+name = "uvicorn"
+version = "0.34.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "h11" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4b/4d/938bd85e5bf2edeec766267a5015ad969730bb91e31b44021dfe8b22df6c/uvicorn-0.34.0.tar.gz", hash = "sha256:404051050cd7e905de2c9a7e61790943440b3416f49cb409f965d9dcd0fa73e9", size = 76568 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/14/33a3a1352cfa71812a3a21e8c9bfb83f60b0011f5e36f2b1399d51928209/uvicorn-0.34.0-py3-none-any.whl", hash = "sha256:023dc038422502fa28a09c7a30bf2b6991512da7dcdb8fd35fe57cfc154126f4", size = 62315 },
 ]
 
 [[package]]
