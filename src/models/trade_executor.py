@@ -42,7 +42,8 @@ class TradeExecutor:
             return 0.0
             
     def execute_trade(self, data: pd.DataFrame, signals: Dict) -> Dict:
-        """Execute paper trade with ATR-based stops"""
+        """Execute paper trade with ATR-based stops and analysis"""
+        self.trade_analyzer = TradeAnalysis()
         try:
             # Check confidence and signals
             if signals.get('rag_confidence', 0) < self.min_confidence:
@@ -69,7 +70,14 @@ class TradeExecutor:
             
         except Exception as e:
             logger.error(f"Trade execution error: {str(e)}")
-            return {'status': 'error', 'reason': str(e)}
+            if trade_result.get('status') == 'stopped_out':
+                analysis = self.trade_analyzer.analyze_stop_loss_trigger(
+                    trade_data=trade_result,
+                    market_data=data
+                )
+                trade_result['stop_loss_analysis'] = analysis
+                
+            return trade_result
             
     def detect_trend_reversal(self, data: pd.DataFrame) -> bool:
         """Detect potential trend reversals using volume and options data"""
