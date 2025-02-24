@@ -19,6 +19,7 @@ class TradeDetectionAgent(BaseAgent):
         self.monte_carlo = MonteCarloRiskManager()
         self.rag_trade_service = RAGTradeService()
         self.market_structure = MarketStructureAnalyzer()
+        self.regime_alignment = MarketRegimeAlignment()
         
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Detect trading opportunities using multiple analysis methods"""
