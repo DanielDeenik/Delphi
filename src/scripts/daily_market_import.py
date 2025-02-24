@@ -14,7 +14,14 @@ async def run_daily_import():
         storage_service = TimeSeriesStorageService()
         market_service = MarketDataService()
         
-        symbols = ['AAPL', 'GOOGL', 'MSFT', 'AMZN']  # Add your symbols here
+        symbols = [
+            # US Stocks
+            'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'BAC', 'WMT',
+            # International
+            'BVI.PA', 'PRX.AS', 'SAP.DE', 'SONY', 'TCEHY',
+            # Crypto
+            'BTC-USD', 'ETH-USD', 'HUT', 'RIOT', 'COIN'
+        ]
         
         for symbol in symbols:
             logger.info(f"Importing data for {symbol}")
