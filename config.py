@@ -1,16 +1,17 @@
+
 import os
 from typing import Dict
 
-# Firebase configuration using provided web credentials
+# Firebase configuration using environment variables
 FIREBASE_CONFIG = {
-    "apiKey": "AIzaSyCQ6DR8OcVTcT1dje6Gtcuv6YgAlTlYcjE",
-    "authDomain": "delphi-31d1a.firebaseapp.com",
-    "projectId": "delphi-31d1a",
-    "storageBucket": "delphi-31d1a.firebasestorage.app",
-    "messagingSenderId": "158361021905",
-    "appId": "1:158361021905:web:63832f8a2c83c736cd44f0",
-    "measurementId": "G-EKQXY1M25M",
-    "databaseURL": "https://delphi-31d1a-default-rtdb.firebaseio.com"  # Added database URL
+    "apiKey": os.environ.get("FIREBASE_API_KEY"),
+    "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
+    "projectId": os.environ.get("FIREBASE_PROJECT_ID"),
+    "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": os.environ.get("FIREBASE_APP_ID"),
+    "measurementId": os.environ.get("FIREBASE_MEASUREMENT_ID"),
+    "databaseURL": os.environ.get("FIREBASE_DATABASE_URL")
 }
 
 # Initialize Firebase app without admin SDK
