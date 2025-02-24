@@ -10,7 +10,8 @@ class TradeDetectionAgent(BaseAgent):
         super().__init__("TradeDetectionAgent")
         self.mosaic_agent = MosaicTheoryAgent()
         self.rag_analyzer = RAGTradeAnalyzer()
-        self.outlier_detector = MosaicOutlierDetector()
+        self.signal_detector = MarketSignalDetector()
+        self.outlier_bot = OutlierDetectionBot()
         self.medallion_analyzer = MedallionAnalyzer()
         self.risk_analyzer = BayesianRiskAnalyzer()
         
