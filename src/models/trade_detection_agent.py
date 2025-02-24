@@ -11,6 +11,7 @@ class TradeDetectionAgent(BaseAgent):
         self.mosaic_agent = MosaicTheoryAgent()
         self.rag_analyzer = RAGTradeAnalyzer()
         self.signal_detector = MarketSignalDetector()
+        self.strength_analyzer = RelativeStrengthAnalyzer()
         self.outlier_bot = OutlierDetectionBot()
         self.medallion_analyzer = MedallionAnalyzer()
         self.risk_analyzer = BayesianRiskAnalyzer()
