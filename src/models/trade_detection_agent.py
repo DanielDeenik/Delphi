@@ -11,6 +11,8 @@ class TradeDetectionAgent(BaseAgent):
         self.mosaic_agent = MosaicTheoryAgent()
         self.rag_analyzer = RAGTradeAnalyzer()
         self.outlier_detector = MosaicOutlierDetector()
+        self.medallion_analyzer = MedallionAnalyzer()
+        self.risk_analyzer = BayesianRiskAnalyzer()
         
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Detect trading opportunities using multiple analysis methods"""
@@ -32,10 +34,23 @@ class TradeDetectionAgent(BaseAgent):
             )
             
             # Generate trade signals
+            # Detect statistical arbitrage opportunities
+            stat_arb = self.medallion_analyzer.detect_stat_arb_opportunities(
+                context['market_data']
+            )
+            
+            # Calculate position risk
+            risk_assessment = self.risk_analyzer.calculate_position_risk(
+                stat_arb,
+                context.get('historical_performance', [])
+            )
+            
             signals = self._generate_trade_signals(
                 mosaic_analysis,
                 similar_trades,
                 outlier_signals,
+                stat_arb,
+                risk_assessment,
                 context
             )
             
