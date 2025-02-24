@@ -14,6 +14,7 @@ class TradeDetectionAgent(BaseAgent):
         self.outlier_bot = OutlierDetectionBot()
         self.medallion_analyzer = MedallionAnalyzer()
         self.risk_analyzer = BayesianRiskAnalyzer()
+        self.monte_carlo = MonteCarloRiskManager()
         
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Detect trading opportunities using multiple analysis methods"""
