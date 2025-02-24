@@ -29,6 +29,7 @@ class MarketIntelligence:
         self.regime_classifier = MarketRegimeClassifier(n_regimes=3)
         self.market_memory = RAGMarketMemory(pinecone_api_key, environment)
         self.price_predictor = LSTMPricePredictor()
+        self.finchat_service = FinChatService()
 
     async def analyze_market_conditions(self, 
                                      market_data: pd.DataFrame,
@@ -43,10 +44,16 @@ class MarketIntelligence:
             price_forecast = self.price_predictor.predict_next_movement(market_data)
 
             # Get similar historical patterns
+            # Get FinChat market sentiment
+            finchat_sentiment = await self.finchat_service.get_market_sentiment(market_data.symbol)
+            finchat_social = await self.finchat_service.get_social_metrics(market_data.symbol)
+            
             similar_patterns = self.rag_analyzer.get_similar_trades({
                 'market_regime': regime,
                 'sentiment': sentiment_data.get('overall_sentiment'),
-                'volume_profile': market_data['volume'].tail(5).mean()
+                'volume_profile': market_data['volume'].tail(5).mean(),
+                'finchat_sentiment': finchat_sentiment,
+                'social_metrics': finchat_social
             })
 
             # Generate trade insights
