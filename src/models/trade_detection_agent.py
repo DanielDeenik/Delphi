@@ -15,6 +15,7 @@ class TradeDetectionAgent(BaseAgent):
         self.outlier_bot = OutlierDetectionBot()
         self.medallion_analyzer = MedallionAnalyzer()
         self.risk_analyzer = BayesianRiskAnalyzer()
+        self.beta_analyzer = BetaPerformanceAnalyzer()
         self.monte_carlo = MonteCarloRiskManager()
         self.rag_trade_service = RAGTradeService()
         
