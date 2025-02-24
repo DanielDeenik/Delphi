@@ -20,6 +20,7 @@ class TradeDetectionAgent(BaseAgent):
         self.rag_trade_service = RAGTradeService()
         self.market_structure = MarketStructureAnalyzer()
         self.regime_alignment = MarketRegimeAlignment()
+        self.trade_review = TradeReviewSystem()
         
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Detect trading opportunities using multiple analysis methods"""
