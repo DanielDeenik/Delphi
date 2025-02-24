@@ -7,3 +7,4 @@ __all__ = [
     'SentimentAnalysisService',
     'TradingSignalService'
 ]
+# Initialize services package
