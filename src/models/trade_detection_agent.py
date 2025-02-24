@@ -15,6 +15,7 @@ class TradeDetectionAgent(BaseAgent):
         self.medallion_analyzer = MedallionAnalyzer()
         self.risk_analyzer = BayesianRiskAnalyzer()
         self.monte_carlo = MonteCarloRiskManager()
+        self.rag_trade_service = RAGTradeService()
         
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Detect trading opportunities using multiple analysis methods"""
