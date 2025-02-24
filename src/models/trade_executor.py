@@ -13,6 +13,8 @@ class TradeExecutor:
     def __init__(self):
         self.institutional_tracker = InstitutionalTracker()
         self.signal_generator = SignalGenerator()
+        self.atr_stop = ATRStopLoss(atr_multiplier=1.5)
+        self.min_confidence = 0.8  # 80% confidence threshold
         
     def analyze_market_conditions(self, data: pd.DataFrame) -> Dict:
         """Analyze current market conditions using multiple indicators"""
@@ -38,6 +40,36 @@ class TradeExecutor:
         except Exception as e:
             logger.error(f"Error calculating position size: {str(e)}")
             return 0.0
+            
+    def execute_trade(self, data: pd.DataFrame, signals: Dict) -> Dict:
+        """Execute paper trade with ATR-based stops"""
+        try:
+            # Check confidence and signals
+            if signals.get('rag_confidence', 0) < self.min_confidence:
+                return {'status': 'rejected', 'reason': 'confidence_below_threshold'}
+                
+            # Validate volume and institutional signals
+            volume_confirmed = signals.get('volume_signals', {}).get('surge', False)
+            inst_confirmed = signals.get('institutional_signals', {}).get('accumulation', False)
+            
+            if not (volume_confirmed and inst_confirmed):
+                return {'status': 'rejected', 'reason': 'insufficient_confirmation'}
+            
+            # Calculate position size and stop loss
+            position_size = self.calculate_position_size(signals)
+            stop_level = self.atr_stop.get_stop_level(data, 'LONG')
+            
+            return {
+                'status': 'executed',
+                'position_size': position_size,
+                'entry_price': data['Close'].iloc[-1],
+                'stop_loss': stop_level,
+                'signals': signals
+            }
+            
+        except Exception as e:
+            logger.error(f"Trade execution error: {str(e)}")
+            return {'status': 'error', 'reason': str(e)}
             
     def detect_trend_reversal(self, data: pd.DataFrame) -> bool:
         """Detect potential trend reversals using volume and options data"""
