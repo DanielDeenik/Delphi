@@ -10,6 +10,7 @@ class TradeDetectionAgent(BaseAgent):
         super().__init__("TradeDetectionAgent")
         self.mosaic_agent = MosaicTheoryAgent()
         self.rag_analyzer = RAGTradeAnalyzer()
+        self.outlier_detector = MosaicOutlierDetector()
         
     async def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """Detect trading opportunities using multiple analysis methods"""
@@ -24,10 +25,17 @@ class TradeDetectionAgent(BaseAgent):
                 context['market_data']
             )
             
+            # Detect outliers and generate signals
+            outlier_signals = self.outlier_detector.detect_outliers(
+                context['market_data'],
+                mosaic_analysis['sentiment']
+            )
+            
             # Generate trade signals
             signals = self._generate_trade_signals(
                 mosaic_analysis,
                 similar_trades,
+                outlier_signals,
                 context
             )
             
