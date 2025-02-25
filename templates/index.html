@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle of Delphi - Financial Intelligence</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto">
+            <h1 class="text-2xl font-bold">🏛️ Oracle of Delphi</h1>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-xl font-bold mb-4">Market Overview</h2>
+                <div id="marketChart"></div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-xl font-bold mb-4">Volume Analysis</h2>
+                <div id="volumeChart"></div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-xl font-bold mb-4">Sentiment Analysis</h2>
+                <div id="sentimentMetrics"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts and fetch data
+        async function fetchData(symbol = 'AAPL') {
+            const response = await fetch(`/api/market_data/${symbol}`);
+            const data = await response.json();
+            return data;
+        }
+
+        async function updateCharts() {
+            const data = await fetchData();
+            
+            // Market chart
+            const marketTrace = {
+                x: data.map(d => d.date),
+                y: data.map(d => d.close),
+                type: 'scatter',
+                name: 'Price'
+            };
+            
+            Plotly.newPlot('marketChart', [marketTrace], {
+                title: 'Market Price',
+                template: 'plotly_dark'
+            });
+
+            // Volume chart
+            const volumeTrace = {
+                x: data.map(d => d.date),
+                y: data.map(d => d.volume),
+                type: 'bar',
+                name: 'Volume'
+            };
+            
+            Plotly.newPlot('volumeChart', [volumeTrace], {
+                title: 'Trading Volume',
+                template: 'plotly_dark'
+            });
+        }
+
+        // Initial load
+        updateCharts();
+    </script>
+</body>
+</html>
