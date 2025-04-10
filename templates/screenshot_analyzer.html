@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle of Delphi - Screenshot Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .drag-area {
+            border: 2px dashed #4CAF50;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        .drag-area.active {
+            border-color: #2196F3;
+            background-color: rgba(33, 150, 243, 0.1);
+        }
+        .ticker-card {
+            transition: all 0.3s ease;
+        }
+        .ticker-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <nav class="bg-gray-800 p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">🏛️ Oracle of Delphi</h1>
+            <div class="text-sm">Screenshot Analyzer</div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Upload and Extracted Tickers -->
+            <div class="lg:col-span-1">
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <h2 class="text-xl font-bold mb-4">Upload Screenshot</h2>
+                    <div id="dragArea" class="drag-area p-6 text-center cursor-pointer">
+                        <div class="mb-4">
+                            <svg class="w-12 h-12 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                        <p class="mb-2">Drag & Drop a screenshot here</p>
+                        <p class="text-sm text-gray-400">or</p>
+                        <button id="browseBtn" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Browse Files</button>
+                        <input type="file" id="fileInput" class="hidden" accept=".png,.jpg,.jpeg,.gif">
+                    </div>
+                    <div id="uploadStatus" class="mt-4 hidden">
+                        <div class="flex items-center">
+                            <div class="loading-spinner mr-3"></div>
+                            <span>Processing screenshot...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="extractedTickersContainer" class="bg-gray-800 rounded-lg p-4 mb-6 hidden">
+                    <h2 class="text-xl font-bold mb-4">Extracted Tickers</h2>
+                    <div id="extractedTickers" class="space-y-2">
+                        <!-- Tickers will be added here -->
+                    </div>
+                    <div class="mt-4 flex justify-between">
+                        <button id="selectAllBtn" class="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 transition">Select All</button>
+                        <button id="analyzeSelectedBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition">Analyze Selected</button>
+                    </div>
+                </div>
+
+                <div id="screenshotPreview" class="bg-gray-800 rounded-lg p-4 mb-6 hidden">
+                    <h2 class="text-xl font-bold mb-4">Screenshot Preview</h2>
+                    <img id="previewImage" class="w-full rounded" src="" alt="Screenshot preview">
+                </div>
+            </div>
+
+            <!-- Right Column: Analysis Results -->
+            <div class="lg:col-span-2">
+                <div id="analysisStatus" class="bg-gray-800 rounded-lg p-4 mb-6 hidden">
+                    <div class="flex items-center">
+                        <div class="loading-spinner mr-3"></div>
+                        <span>Analyzing tickers...</span>
+                    </div>
+                </div>
+
+                <div id="analysisResults" class="space-y-6">
+                    <!-- Analysis results will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <template id="tickerItemTemplate">
+        <div class="ticker-item flex items-center justify-between bg-gray-700 p-3 rounded">
+            <div class="flex items-center">
+                <input type="checkbox" class="ticker-checkbox mr-3 h-5 w-5" checked>
+                <div>
+                    <div class="font-bold ticker-symbol">AAPL</div>
+                    <div class="text-sm text-gray-400 ticker-confidence">Confidence: 95%</div>
+                </div>
+            </div>
+            <button class="info-btn px-2 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition">Info</button>
+        </div>
+    </template>
+
+    <template id="analysisCardTemplate">
+        <div class="analysis-card bg-gray-800 rounded-lg overflow-hidden">
+            <div class="p-4 border-b border-gray-700">
+                <h3 class="text-xl font-bold ticker-heading">AAPL Analysis</h3>
+            </div>
+            <div class="p-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="price-chart h-64"></div>
+                    <div class="volume-chart h-64"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-gray-700 p-3 rounded">
+                        <h4 class="font-bold mb-2">Price Prediction</h4>
+                        <div class="price-prediction-content"></div>
+                    </div>
+                    <div class="bg-gray-700 p-3 rounded">
+                        <h4 class="font-bold mb-2">Trend Analysis</h4>
+                        <div class="trend-analysis-content"></div>
+                    </div>
+                    <div class="bg-gray-700 p-3 rounded">
+                        <h4 class="font-bold mb-2">Sentiment</h4>
+                        <div class="sentiment-content"></div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-700 p-3 rounded">
+                        <h4 class="font-bold mb-2">Volatility Forecast</h4>
+                        <div class="volatility-content"></div>
+                    </div>
+                    <div class="bg-gray-700 p-3 rounded">
+                        <h4 class="font-bold mb-2">Volume Analysis</h4>
+                        <div class="volume-analysis-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const dragArea = document.getElementById('dragArea');
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const extractedTickersContainer = document.getElementById('extractedTickersContainer');
+            const extractedTickers = document.getElementById('extractedTickers');
+            const screenshotPreview = document.getElementById('screenshotPreview');
+            const previewImage = document.getElementById('previewImage');
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            const analyzeSelectedBtn = document.getElementById('analyzeSelectedBtn');
+            const analysisStatus = document.getElementById('analysisStatus');
+            const analysisResults = document.getElementById('analysisResults');
+            
+            // Templates
+            const tickerItemTemplate = document.getElementById('tickerItemTemplate');
+            const analysisCardTemplate = document.getElementById('analysisCardTemplate');
+            
+            // Variables
+            let extractedTickerData = [];
+            
+            // Event Listeners
+            browseBtn.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', function() {
+                if (this.files.length) {
+                    handleFile(this.files[0]);
+                }
+            });
+            
+            dragArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('active');
+            });
+            
+            dragArea.addEventListener('dragleave', function() {
+                this.classList.remove('active');
+            });
+            
+            dragArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('active');
+                
+                if (e.dataTransfer.files.length) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+            
+            selectAllBtn.addEventListener('click', function() {
+                const checkboxes = document.querySelectorAll('.ticker-checkbox');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                
+                checkboxes.forEach(cb => {
+                    cb.checked = !allChecked;
+                });
+            });
+            
+            analyzeSelectedBtn.addEventListener('click', function() {
+                const selectedTickers = [];
+                document.querySelectorAll('.ticker-item').forEach(item => {
+                    const checkbox = item.querySelector('.ticker-checkbox');
+                    if (checkbox.checked) {
+                        selectedTickers.push(item.dataset.ticker);
+                    }
+                });
+                
+                if (selectedTickers.length === 0) {
+                    alert('Please select at least one ticker to analyze');
+                    return;
+                }
+                
+                analyzeTickers(selectedTickers);
+            });
+            
+            // Functions
+            function handleFile(file) {
+                // Check file type
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!validTypes.includes(file.type)) {
+                    alert('Please upload an image file (JPEG, PNG, or GIF)');
+                    return;
+                }
+                
+                // Show upload status
+                uploadStatus.classList.remove('hidden');
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                // Upload file
+                fetch('/api/upload_screenshot', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Hide upload status
+                    uploadStatus.classList.add('hidden');
+                    
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        return;
+                    }
+                    
+                    // Show preview
+                    showScreenshotPreview(file);
+                    
+                    // Process extracted tickers
+                    processExtractedTickers(data);
+                })
+                .catch(error => {
+                    uploadStatus.classList.add('hidden');
+                    alert('Error uploading file: ' + error);
+                });
+            }
+            
+            function showScreenshotPreview(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    screenshotPreview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            function processExtractedTickers(data) {
+                extractedTickerData = data;
+                
+                // Clear previous tickers
+                extractedTickers.innerHTML = '';
+                
+                // Check if tickers were found
+                if (!data.tickers || data.tickers.length === 0) {
+                    extractedTickers.innerHTML = '<div class="text-center py-4">No tickers found in the screenshot</div>';
+                    extractedTickersContainer.classList.remove('hidden');
+                    return;
+                }
+                
+                // Add tickers to the list
+                data.tickers.forEach(ticker => {
+                    const [symbol, confidence] = ticker;
+                    
+                    // Clone template
+                    const tickerItem = tickerItemTemplate.content.cloneNode(true);
+                    
+                    // Set data
+                    tickerItem.querySelector('.ticker-symbol').textContent = symbol;
+                    tickerItem.querySelector('.ticker-confidence').textContent = `Confidence: ${Math.round(confidence * 100)}%`;
+                    
+                    // Set data attribute
+                    const itemDiv = tickerItem.querySelector('.ticker-item');
+                    itemDiv.dataset.ticker = symbol;
+                    
+                    // Add info button event
+                    const infoBtn = tickerItem.querySelector('.info-btn');
+                    infoBtn.addEventListener('click', () => {
+                        alert(`Symbol: ${symbol}\nConfidence: ${Math.round(confidence * 100)}%\nPlatform: ${data.platform}`);
+                    });
+                    
+                    // Add to container
+                    extractedTickers.appendChild(tickerItem);
+                });
+                
+                // Show container
+                extractedTickersContainer.classList.remove('hidden');
+            }
+            
+            function analyzeTickers(tickers) {
+                // Show analysis status
+                analysisStatus.classList.remove('hidden');
+                
+                // Clear previous results
+                analysisResults.innerHTML = '';
+                
+                // Send request
+                fetch('/api/analyze_tickers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        tickers: tickers
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Hide analysis status
+                    analysisStatus.classList.add('hidden');
+                    
+                    // Process results
+                    displayAnalysisResults(data);
+                })
+                .catch(error => {
+                    analysisStatus.classList.add('hidden');
+                    alert('Error analyzing tickers: ' + error);
+                });
+            }
+            
+            function displayAnalysisResults(results) {
+                // Clear previous results
+                analysisResults.innerHTML = '';
+                
+                // Process each ticker
+                Object.entries(results).forEach(([ticker, analysis]) => {
+                    // Check for errors
+                    if (analysis.error) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'bg-red-800 p-4 rounded-lg';
+                        errorDiv.innerHTML = `<h3 class="font-bold">${ticker}</h3><p>${analysis.error}</p>`;
+                        analysisResults.appendChild(errorDiv);
+                        return;
+                    }
+                    
+                    // Clone template
+                    const card = analysisCardTemplate.content.cloneNode(true);
+                    
+                    // Set ticker heading
+                    card.querySelector('.ticker-heading').textContent = `${ticker} Analysis`;
+                    
+                    // Create card element and add to results
+                    const cardElement = document.createElement('div');
+                    cardElement.appendChild(card);
+                    analysisResults.appendChild(cardElement);
+                    
+                    // Fetch market data for charts
+                    fetch(`/api/market_data/${ticker}`)
+                        .then(response => response.json())
+                        .then(marketData => {
+                            if (marketData.error) {
+                                console.error(`Error fetching market data for ${ticker}: ${marketData.error}`);
+                                return;
+                            }
+                            
+                            // Create charts
+                            createPriceChart(cardElement.querySelector('.price-chart'), ticker, marketData);
+                            createVolumeChart(cardElement.querySelector('.volume-chart'), ticker, marketData);
+                            
+                            // Fill in analysis sections
+                            fillPricePrediction(cardElement.querySelector('.price-prediction-content'), analysis.price_prediction);
+                            fillTrendAnalysis(cardElement.querySelector('.trend-analysis-content'), analysis.trend_analysis);
+                            fillSentiment(cardElement.querySelector('.sentiment-content'), analysis.sentiment_analysis);
+                            fillVolatility(cardElement.querySelector('.volatility-content'), analysis.volatility_forecast);
+                            fillVolumeAnalysis(cardElement.querySelector('.volume-analysis-content'), analysis.volume_analysis);
+                        })
+                        .catch(error => {
+                            console.error(`Error fetching market data for ${ticker}: ${error}`);
+                        });
+                });
+            }
+            
+            function createPriceChart(container, ticker, data) {
+                // Sort data by date
+                data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                // Create price trace
+                const trace = {
+                    x: data.map(d => d.date),
+                    y: data.map(d => d.Close),
+                    type: 'scatter',
+                    name: 'Price',
+                    line: { color: '#4CAF50' }
+                };
+                
+                // Layout
+                const layout = {
+                    title: `${ticker} Price`,
+                    template: 'plotly_dark',
+                    margin: { t: 30, r: 10, b: 30, l: 50 },
+                    xaxis: { showgrid: false },
+                    yaxis: { showgrid: false }
+                };
+                
+                // Create chart
+                Plotly.newPlot(container, [trace], layout);
+            }
+            
+            function createVolumeChart(container, ticker, data) {
+                // Sort data by date
+                data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                // Create volume trace
+                const trace = {
+                    x: data.map(d => d.date),
+                    y: data.map(d => d.Volume),
+                    type: 'bar',
+                    name: 'Volume',
+                    marker: { color: '#2196F3' }
+                };
+                
+                // Layout
+                const layout = {
+                    title: `${ticker} Volume`,
+                    template: 'plotly_dark',
+                    margin: { t: 30, r: 10, b: 30, l: 50 },
+                    xaxis: { showgrid: false },
+                    yaxis: { showgrid: false }
+                };
+                
+                // Create chart
+                Plotly.newPlot(container, [trace], layout);
+            }
+            
+            function fillPricePrediction(container, prediction) {
+                if (!prediction || prediction.error) {
+                    container.innerHTML = '<div class="text-red-400">Insufficient data for prediction</div>';
+                    return;
+                }
+                
+                const expectedReturn = prediction.expected_return.toFixed(2);
+                const returnClass = expectedReturn >= 0 ? 'text-green-400' : 'text-red-400';
+                
+                container.innerHTML = `
+                    <div class="flex justify-between mb-2">
+                        <span>Current Price:</span>
+                        <span class="font-bold">$${prediction.current_price.toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span>5-Day Forecast:</span>
+                        <span class="font-bold">$${prediction.predictions[prediction.predictions.length-1].toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Expected Return:</span>
+                        <span class="font-bold ${returnClass}">${expectedReturn >= 0 ? '+' : ''}${expectedReturn}%</span>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-400">Confidence: ${Math.round(prediction.confidence * 100)}%</div>
+                `;
+            }
+            
+            function fillTrendAnalysis(container, trend) {
+                if (!trend || trend.error) {
+                    container.innerHTML = '<div class="text-red-400">Insufficient data for trend analysis</div>';
+                    return;
+                }
+                
+                // Determine color based on trend
+                let trendColor = 'text-gray-400';
+                if (trend.trend.includes('Uptrend')) {
+                    trendColor = 'text-green-400';
+                } else if (trend.trend.includes('Downtrend')) {
+                    trendColor = 'text-red-400';
+                }
+                
+                container.innerHTML = `
+                    <div class="flex justify-between mb-2">
+                        <span>Trend:</span>
+                        <span class="font-bold ${trendColor}">${trend.trend}</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span>Strength:</span>
+                        <span class="font-bold">${trend.strength.toFixed(1)}/10</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Momentum:</span>
+                        <span class="font-bold ${trend.momentum >= 0 ? 'text-green-400' : 'text-red-400'}">
+                            ${trend.momentum >= 0 ? '+' : ''}${trend.momentum.toFixed(2)}%
+                        </span>
+                    </div>
+                `;
+            }
+            
+            function fillSentiment(container, sentiment) {
+                if (!sentiment || sentiment.error) {
+                    container.innerHTML = '<div class="text-red-400">Insufficient data for sentiment analysis</div>';
+                    return;
+                }
+                
+                // Determine color based on sentiment
+                let sentimentColor = 'text-gray-400';
+                if (sentiment.sentiment.includes('Bullish')) {
+                    sentimentColor = 'text-green-400';
+                } else if (sentiment.sentiment.includes('Bearish')) {
+                    sentimentColor = 'text-red-400';
+                }
+                
+                container.innerHTML = `
+                    <div class="flex justify-between mb-2">
+                        <span>Sentiment:</span>
+                        <span class="font-bold ${sentimentColor}">${sentiment.sentiment}</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span>Score:</span>
+                        <span class="font-bold">${sentiment.sentiment_score.toFixed(1)}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>RSI:</span>
+                        <span class="font-bold">${sentiment.rsi.toFixed(1)}</span>
+                    </div>
+                `;
+            }
+            
+            function fillVolatility(container, volatility) {
+                if (!volatility || volatility.error) {
+                    container.innerHTML = '<div class="text-red-400">Insufficient data for volatility forecast</div>';
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <div class="flex justify-between mb-2">
+                        <span>Historical Volatility:</span>
+                        <span class="font-bold">${(volatility.historical_volatility * 100).toFixed(2)}%</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span>Forecast Volatility:</span>
+                        <span class="font-bold">${(volatility.forecast_volatility * 100).toFixed(2)}%</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>1-Day VaR (95%):</span>
+                        <span class="font-bold">${volatility.var_1day_percent.toFixed(2)}%</span>
+                    </div>
+                `;
+            }
+            
+            function fillVolumeAnalysis(container, volume) {
+                if (!volume || volume.error) {
+                    container.innerHTML = '<div class="text-red-400">Insufficient data for volume analysis</div>';
+                    return;
+                }
+                
+                // Determine color based on volume signal
+                let volumeColor = 'text-gray-400';
+                if (volume.volume_signal === 'Unusually High') {
+                    volumeColor = 'text-green-400';
+                } else if (volume.volume_signal === 'Unusually Low') {
+                    volumeColor = 'text-red-400';
+                }
+                
+                container.innerHTML = `
+                    <div class="flex justify-between mb-2">
+                        <span>Volume Signal:</span>
+                        <span class="font-bold ${volumeColor}">${volume.volume_signal}</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                        <span>Relative Volume:</span>
+                        <span class="font-bold">${volume.relative_volume.toFixed(2)}x</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Price-Volume:</span>
+                        <span class="font-bold">${volume.price_volume_confirmation}</span>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

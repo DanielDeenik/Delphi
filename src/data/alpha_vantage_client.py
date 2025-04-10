@@ -2,8 +2,8 @@ import os
 import requests
 import pandas as pd
 from datetime import datetime
-import time
 import logging
+from ..services.sqlite_storage_service import SQLiteStorageService
 from ..services.timeseries_storage_service import TimeSeriesStorageService
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,12 @@ class AlphaVantageClient:
     def __init__(self):
         self.api_key = os.getenv('ALPHA_VANTAGE_API_KEY')
         self.base_url = 'https://www.alphavantage.co/query'
-        self.storage_service = TimeSeriesStorageService()
+
+        # Use SQLite as primary storage
+        self.storage_service = SQLiteStorageService()
+
+        # Keep BigQuery storage for future migration
+        self.bigquery_storage = TimeSeriesStorageService() if os.getenv('USE_BIGQUERY', 'false').lower() == 'true' else None
 
     def fetch_daily_adjusted(self, symbol, force_refresh=False):
         """
@@ -35,7 +40,7 @@ class AlphaVantageClient:
                     end_date=end_date
                 )
                 if not cached_data.empty:
-                    logger.info(f"Retrieved cached data for {symbol} from cloud storage")
+                    logger.info(f"Retrieved cached data for {symbol} from SQLite storage")
                     return cached_data
 
             # Fetch from Alpha Vantage if cache miss or force refresh
@@ -90,11 +95,18 @@ class AlphaVantageClient:
             logger.info(f"Successfully fetched data for {symbol}. Shape: {df.shape}")
             logger.info(f"Columns: {df.columns.tolist()}")
 
-            # Store in cloud storage
+            # Store in SQLite
             if self.storage_service.store_market_data(symbol, df):
-                logger.info(f"Successfully stored {symbol} data in cloud storage")
+                logger.info(f"Successfully stored {symbol} data in SQLite")
             else:
-                logger.warning(f"Failed to store {symbol} data in cloud storage")
+                logger.warning(f"Failed to store {symbol} data in SQLite")
+
+            # Also store in BigQuery if enabled
+            if self.bigquery_storage:
+                if self.bigquery_storage.store_market_data(symbol, df):
+                    logger.info(f"Successfully stored {symbol} data in BigQuery")
+                else:
+                    logger.warning(f"Failed to store {symbol} data in BigQuery")
 
             return df
 
@@ -151,11 +163,18 @@ class AlphaVantageClient:
             for col in numeric_columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-            # Store in cloud storage
-            if self.storage_service.store_market_data(symbol, df, partition_size='1H'):
-                logger.info(f"Successfully stored intraday data for {symbol}")
+            # Store in SQLite
+            if self.storage_service.store_market_data(symbol, df):
+                logger.info(f"Successfully stored intraday data for {symbol} in SQLite")
             else:
-                logger.warning(f"Failed to store intraday data for {symbol}")
+                logger.warning(f"Failed to store intraday data for {symbol} in SQLite")
+
+            # Also store in BigQuery if enabled
+            if self.bigquery_storage:
+                if self.bigquery_storage.store_market_data(symbol, df, partition_size='1H'):
+                    logger.info(f"Successfully stored intraday data for {symbol} in BigQuery")
+                else:
+                    logger.warning(f"Failed to store intraday data for {symbol} in BigQuery")
 
             return df
 

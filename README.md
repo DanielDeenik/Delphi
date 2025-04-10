@@ -1,116 +1,134 @@
-git clone <repository-url>
-cd financial-intelligence-platform
-```
+# Delphi - Financial Analysis Platform
 
-2. Install required packages:
+Delphi is a comprehensive platform for financial data analysis, with a focus on volume analysis and correlation detection.
+
+## Features
+
+- Import data from Alpha Vantage and Yahoo Finance
+- Store data in Google BigQuery
+- Analyze volume patterns and correlations
+- Generate visualizations
+- Command-line interface for data import and analysis
+
+## Installation
+
 ```bash
-pip install streamlit plotly pandas numpy scikit-learn tensorflow-cpu google-cloud-storage google-cloud-bigquery pandas-gbq hmmlearn
+# Clone the repository
+git clone https://github.com/yourusername/delphi.git
+cd delphi
+
+# Install the package
+pip install -e .
+
+# Install optional dependencies
+pip install -e ".[yfinance]"
+pip install -e ".[dev]"
 ```
 
-3. Set up environment variables:
+## Configuration
+
+Create a `.env` file in the root directory with the following variables:
+
+```
+# Google Cloud
+GOOGLE_CLOUD_PROJECT=your-project-id
+BIGQUERY_DATASET=market_data
+BIGQUERY_TABLE=time_series
+BIGQUERY_LOCATION=US
+
+# Alpha Vantage
+ALPHA_VANTAGE_API_KEY=your-api-key
+```
+
+## Usage
+
+### Command-line Interface
+
+Import data:
+
 ```bash
-# Required for market data
-export ALPHA_VANTAGE_API_KEY=your_api_key
-# Required for cloud storage
-export GOOGLE_CLOUD_PROJECT=your_project_id
+# Import data from Yahoo Finance
+delphi-import --source yfinance --symbols SPY PLTR ^VIX
+
+# Import data from Alpha Vantage
+delphi-import --source alpha_vantage --symbols SPY PLTR ^VIX
 ```
 
-## Running Locally
+Analyze data:
 
-1. Start the Streamlit application:
 ```bash
-streamlit run app.py
+# Analyze data for the last 90 days
+delphi-analyze --days 90 --symbols SPY PLTR ^VIX
 ```
 
-The application will be available at `http://localhost:5000`
+### Python API
 
-## Docker Development
+```python
+from delphi.data import YFinanceClient, BigQueryImporter
+from delphi.models import VolumeAnalyzer, CorrelationAnalyzer
+from delphi.utils.config import load_env
 
-1. Build the Docker image:
-```bash
-docker build -t rag-analysis:latest .
+# Load environment variables
+load_env()
+
+# Create data source
+data_source = YFinanceClient()
+
+# Create importer
+importer = BigQueryImporter()
+
+# Import data
+results = importer.import_data(
+    data_source=data_source,
+    symbols=["SPY", "PLTR", "^VIX"],
+    period="2y"
+)
+
+# Create analyzers
+volume_analyzer = VolumeAnalyzer()
+correlation_analyzer = CorrelationAnalyzer()
+
+# Analyze data
+volume_results = volume_analyzer.analyze(data["SPY"])
+correlation_results = correlation_analyzer.analyze(data)
 ```
-
-2. Run the container locally:
-```bash
-docker run -p 8080:8080 \
-  -e ALPHA_VANTAGE_API_KEY=your_key \
-  -e GOOGLE_CLOUD_PROJECT=your_project \
-  rag-analysis:latest
-```
-
-## Google Cloud Deployment
-
-1. Install Google Cloud SDK and kubectl:
-```bash
-# Install Google Cloud SDK
-curl https://sdk.cloud.google.com | bash
-# Install kubectl
-gcloud components install kubectl
-```
-
-2. Configure Google Cloud:
-```bash
-gcloud init
-gcloud config set project YOUR_PROJECT_ID
-gcloud auth configure-docker
-```
-
-3. Enable required APIs:
-```bash
-gcloud services enable container.googleapis.com
-gcloud services enable containerregistry.googleapis.com
-gcloud services enable bigquery.googleapis.com
-gcloud services enable storage.googleapis.com
-```
-
-4. Create GKE cluster:
-```bash
-gcloud container clusters create rag-analysis-cluster \
-  --num-nodes=3 \
-  --machine-type=e2-standard-2 \
-  --region=us-central1
-```
-
-5. Build and push Docker image:
-```bash
-docker build -t gcr.io/${GOOGLE_CLOUD_PROJECT}/rag-analysis:latest .
-docker push gcr.io/${GOOGLE_CLOUD_PROJECT}/rag-analysis:latest
-```
-
-6. Create secrets:
-```bash
-kubectl create secret generic api-secrets \
-  --from-literal=openai-api-key=$OPENAI_API_KEY \
-  --from-literal=alpha-vantage-api-key=$ALPHA_VANTAGE_API_KEY \
-  --from-literal=google-cloud-project=$GOOGLE_CLOUD_PROJECT
-```
-
-7. Deploy to Kubernetes:
-```bash
-kubectl apply -f k8s/rag-analysis-deployment.yaml
-```
-
-8. Monitor deployment:
-```bash
-kubectl get pods
-kubectl get services
-```
-
-The LoadBalancer service will provide an external IP for accessing the application.
 
 ## Project Structure
 
 ```
-src/
-├── models/             # ML and AI Models
-│   ├── rag_volume_analyzer.py     # Main volume analysis model
-│   ├── hmm_regime_classifier.py   # Market regime classification
-│   ├── lstm_price_predictor.py    # Price prediction model
-│   └── ml_volume_analyzer.py      # ML-based volume analysis
-├── services/           # Core Services
-│   ├── timeseries_storage_service.py  # Data storage management
-│   ├── volume_analysis_service.py     # Volume analysis service
-│   └── sentiment_analysis_service.py  # Sentiment analysis
-└── data/              # Data Management
-    └── alpha_vantage_client.py    # Market data fetching
+delphi/
+├── __init__.py
+├── data/
+│   ├── __init__.py
+│   ├── data_source.py
+│   ├── alpha_vantage_client.py
+│   ├── yfinance_client.py
+│   └── bigquery_importer.py
+├── models/
+│   ├── __init__.py
+│   ├── volume_analyzer.py
+│   ├── correlation_analyzer.py
+│   └── unified_analyzer.py
+├── services/
+│   ├── __init__.py
+│   ├── storage_service.py
+│   ├── bigquery_service.py
+│   └── service_factory.py
+├── utils/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── logger.py
+│   └── parallel.py
+├── visualization/
+│   ├── __init__.py
+│   ├── volume_plots.py
+│   └── correlation_plots.py
+└── cli/
+    ├── __init__.py
+    ├── import_command.py
+    └── analyze_command.py
+```
+
+## License
+
+MIT

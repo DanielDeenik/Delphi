@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracle of Delphi - Simple Version</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+    <nav class="bg-gray-800 p-4">
+        <div class="container mx-auto">
+            <h1 class="text-2xl font-bold">🏛️ Oracle of Delphi (Simple Version)</h1>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="mb-6">
+            <label for="symbolSelect" class="block text-sm font-medium mb-2">Select Symbol:</label>
+            <select id="symbolSelect" class="bg-gray-700 text-white rounded p-2 w-full md:w-64">
+                <option value="">Loading symbols...</option>
+            </select>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-xl font-bold mb-4">Price Chart</h2>
+                <div id="priceChart" class="h-64"></div>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h2 class="text-xl font-bold mb-4">Volume Chart</h2>
+                <div id="volumeChart" class="h-64"></div>
+            </div>
+        </div>
+
+        <div class="mt-6 bg-gray-800 p-4 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">Data Table</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-gray-700">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-2 text-left">Date</th>
+                            <th class="px-4 py-2 text-left">Open</th>
+                            <th class="px-4 py-2 text-left">High</th>
+                            <th class="px-4 py-2 text-left">Low</th>
+                            <th class="px-4 py-2 text-left">Close</th>
+                            <th class="px-4 py-2 text-left">Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTable">
+                        <tr>
+                            <td colspan="6" class="px-4 py-2 text-center">Select a symbol to view data</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load available symbols
+        async function loadSymbols() {
+            try {
+                const response = await fetch('/api/symbols');
+                const symbols = await response.json();
+                
+                const select = document.getElementById('symbolSelect');
+                select.innerHTML = '';
+                
+                symbols.forEach(symbol => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = symbol;
+                    select.appendChild(option);
+                });
+                
+                // Load first symbol if available
+                if (symbols.length > 0) {
+                    loadData(symbols[0]);
+                }
+            } catch (error) {
+                console.error('Error loading symbols:', error);
+            }
+        }
+
+        // Load data for selected symbol
+        async function loadData(symbol) {
+            try {
+                const response = await fetch(`/api/market_data/${symbol}`);
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                updateCharts(data, symbol);
+                updateTable(data);
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Update charts with data
+        function updateCharts(data, symbol) {
+            // Sort data by date
+            data.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            // Price chart
+            const priceTrace = {
+                x: data.map(d => d.date),
+                y: data.map(d => d.Close),
+                type: 'scatter',
+                name: 'Price',
+                line: { color: '#4CAF50' }
+            };
+            
+            Plotly.newPlot('priceChart', [priceTrace], {
+                title: `${symbol} Price`,
+                template: 'plotly_dark',
+                margin: { t: 30, r: 10, b: 30, l: 50 }
+            });
+
+            // Volume chart
+            const volumeTrace = {
+                x: data.map(d => d.date),
+                y: data.map(d => d.Volume),
+                type: 'bar',
+                name: 'Volume',
+                marker: { color: '#2196F3' }
+            };
+            
+            Plotly.newPlot('volumeChart', [volumeTrace], {
+                title: `${symbol} Volume`,
+                template: 'plotly_dark',
+                margin: { t: 30, r: 10, b: 30, l: 50 }
+            });
+        }
+
+        // Update data table
+        function updateTable(data) {
+            const tableBody = document.getElementById('dataTable');
+            tableBody.innerHTML = '';
+            
+            // Sort data by date (newest first)
+            data.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Take only the first 10 rows
+            const displayData = data.slice(0, 10);
+            
+            displayData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-600';
+                
+                // Format date
+                const date = new Date(row.date);
+                const formattedDate = date.toLocaleDateString();
+                
+                // Create cells
+                const cells = [
+                    formattedDate,
+                    row.Open.toFixed(2),
+                    row.High.toFixed(2),
+                    row.Low.toFixed(2),
+                    row.Close.toFixed(2),
+                    row.Volume.toLocaleString()
+                ];
+                
+                cells.forEach(cell => {
+                    const td = document.createElement('td');
+                    td.className = 'px-4 py-2';
+                    td.textContent = cell;
+                    tr.appendChild(td);
+                });
+                
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Event listener for symbol selection
+        document.getElementById('symbolSelect').addEventListener('change', function() {
+            const symbol = this.value;
+            if (symbol) {
+                loadData(symbol);
+            }
+        });
+
+        // Initial load
+        loadSymbols();
+    </script>
+</body>
+</html>

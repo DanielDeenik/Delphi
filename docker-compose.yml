@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  influxdb:
+    image: influxdb:2.7
+    container_name: delphi-influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=delphi
+      - DOCKER_INFLUXDB_INIT_BUCKET=market_data
+      - DOCKER_INFLUXDB_INIT_RETENTION=30d
+    restart: unless-stopped
+
+  # Uncomment to add Grafana for visualization
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: delphi-grafana
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - grafana-data:/var/lib/grafana
+  #   environment:
+  #     - GF_SECURITY_ADMIN_USER=admin
+  #     - GF_SECURITY_ADMIN_PASSWORD=adminpassword
+  #     - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+  #   depends_on:
+  #     - influxdb
+  #   restart: unless-stopped
+
+volumes:
+  influxdb-data:
+  # grafana-data:
