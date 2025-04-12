@@ -11,7 +11,7 @@ services:
       - ./logs:/app/logs
       - ./status:/app/status
     ports:
-      - "8080:8080"
+      - "6000:6000"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/config/credentials.json
       - PYTHONPATH=/app

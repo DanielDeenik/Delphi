@@ -131,9 +131,27 @@ delphi-import --tickers AAPL MSFT GOOGL --days 365
 # Analyze data
 delphi-analyze --ticker AAPL --days 90
 
-# Launch dashboard
-delphi-dashboard
+# Launch dashboard on port 6000
+delphi-dashboard --port 6000
 ```
+
+### Launching the Application
+
+You can launch the application using the provided scripts:
+
+```bash
+# Windows
+run_app.bat
+
+# Unix/Linux/macOS
+./run_app.sh
+```
+
+This will start the Flask application on port 6000 and open it in your browser. You can access the application at:
+
+- Dashboard: http://localhost:6000
+- Analysis Notebooks: http://localhost:6000/colab
+- API Documentation: http://localhost:6000/api/docs
 
 ### Python API
 

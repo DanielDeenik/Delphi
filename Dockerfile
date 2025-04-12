@@ -33,7 +33,7 @@ RUN pip install -e .
 RUN mkdir -p logs status data
 
 # Expose port for Flask
-EXPOSE 8080
+EXPOSE 6000
 
 # Create a script to choose between different entry points
 RUN echo '#!/bin/bash\n\
@@ -41,7 +41,7 @@ if [ "$1" = "import" ]; then\n\
   shift\n\
   python run_time_series_import.py "$@"\n\
 else\n\
-  flask run --host=0.0.0.0 --port=8080\n\
+  flask run --host=0.0.0.0 --port=6000\n\
 fi' > /app/entrypoint.sh \
     && chmod +x /app/entrypoint.sh
 
