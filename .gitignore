@@ -19,33 +19,52 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Virtual Environment
 .env
 .venv
 venv/
 ENV/
+pyenv/
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*.sublime-workspace
+*.sublime-project
+.spyderproject
+.spyproject
+.ropeproject
+.project
+.pydevproject
+.settings/
 
 # Logs
 *.log
 logs/
 nightly_processing.log
+log/
 
 # Cache
 .cache/
 .pytest_cache/
 .coverage
 htmlcov/
+.hypothesis/
+.mypy_cache/
+.pyre/
 
 # Model files
 models/saved/
 models/cache/
+*.h5
+*.pkl
+*.joblib
+*.model
 
 # Replit specific
 .replit
@@ -56,13 +75,82 @@ replit.nix
 # Secrets
 .env
 .secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cer
 
 # Database
 *.db
 *.sqlite3
+*.sqlite
+*.sql
+
+# Data files
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.json
+*.yaml
+*.yml
+!config/*.yml
+!config/*.yaml
+*.parquet
+*.feather
+*.pickle
+*.npy
+*.npz
+
+# Google Cloud
+application_default_credentials.json
+gcloud.json
+*.gcloudignore
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Documentation
+_build/
+_static/
+_templates/
+
+# Status and temporary files
+status/
+tmp/
+temp/
 
 # Misc
 .DS_Store
 *.bak
 *.tmp
 *.temp
+*~
+.~*
+
+# Project specific
+# Add any project-specific files to ignore here
+
+# Alpha Vantage API key file
+alpha_vantage_api_key.txt
+
+# BigQuery credentials
+bigquery_credentials.json
+
+# Status tracking files
+status/import_status.json
+
+# Temporary data files
+tickers.txt
+
+# Generated documentation
+docs/build/
+
+# Test data
+test_data/
+
+# Backup files
+backups/

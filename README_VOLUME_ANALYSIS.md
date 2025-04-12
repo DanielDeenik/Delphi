@@ -83,16 +83,49 @@ The master summary notebook:
 
 ## Maintenance
 
-To keep the system up to date:
+### Automated Data Import
 
-1. Run the data import script daily to update stock prices:
+You have two options for keeping the data up to date:
+
+1. **From the Master Notebook**:
+   - The master summary notebook includes a section for data import
+   - Simply run the `import_stock_data()` function to update all stocks
+
+2. **Using a Scheduled Cron Job**:
+   - Use the provided script for automated data import:
    ```bash
-   python -m src.scripts.import_stock_data
+   python -m src.scripts.scheduled_data_import
+   ```
+   - Set up a cron job to run this script daily:
+   ```
+   # Example cron job (runs daily at 6:00 AM)
+   0 6 * * * python /path/to/scheduled_data_import.py
+   ```
+   - Make sure to set the required environment variables:
+     - `GOOGLE_CLOUD_PROJECT`: Your Google Cloud project ID
+     - `ALPHA_VANTAGE_API_KEY`: Your Alpha Vantage API key
+
+### Dynamic Watchlist Management
+
+You can update the tracked stocks in two ways:
+
+1. **From the Master Notebook**:
+   - Use the `update_tracked_stocks()` function
+   - Example: `update_tracked_stocks(buy_stocks=['AAPL', 'MSFT', 'GOOGL'], short_stocks=['BIDU', 'NIO', 'SNAP'])`
+   - This will:
+     - Create a backup of the current configuration
+     - Update the tracked stocks
+     - Generate new notebooks for the updated stocks
+
+2. **Using the Command-Line Script**:
+   ```bash
+   python -m src.scripts.update_tracked_stocks --buy AAPL MSFT GOOGL --short BIDU NIO SNAP
    ```
 
-2. Run each individual notebook to update analysis results
+### Analysis Updates
 
-3. Run the master summary notebook to get an updated dashboard
+1. Run each individual notebook to update analysis results
+2. Run the master summary notebook to get an updated dashboard
 
 ## Customization
 
