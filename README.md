@@ -131,13 +131,27 @@ delphi-import --tickers AAPL MSFT GOOGL --days 365
 # Analyze data
 delphi-analyze --ticker AAPL --days 90
 
-# Launch dashboard on port 6000
-delphi-dashboard --port 6000
+# Launch dashboard on port 3000
+delphi-dashboard --port 3000
 ```
 
 ### Launching the Application
 
-You can launch the application using the automatic launcher scripts:
+You can launch the application using the cross-platform launcher:
+
+```bash
+# Cross-platform Python launcher (recommended)
+python launch_delphi.py
+
+# Simple wrapper scripts
+# Windows
+launch.bat
+
+# Unix/Linux/macOS
+./launch.sh
+```
+
+Alternatively, you can use the platform-specific scripts:
 
 ```bash
 # Windows
@@ -147,17 +161,17 @@ launch_delphi.bat
 ./launch_delphi.sh
 ```
 
-This will:
+The launcher will:
 1. Set up the necessary environment
-2. Start the Flask application on port 6000
+2. Start the Flask application on port 3000
 3. Open the browser to the multi-tab Colab view
 
 You can access the application at:
 
-- Dashboard: http://localhost:6000
-- Analysis Notebooks: http://localhost:6000/colab
-- All Notebooks (21 tabs): http://localhost:6000/colab/all
-- API Documentation: http://localhost:6000/api/docs
+- Dashboard: http://localhost:3000
+- Analysis Notebooks: http://localhost:3000/colab
+- All Notebooks (21 tabs): http://localhost:3000/colab/all
+- API Documentation: http://localhost:3000/api/docs
 
 For Windows users, you can create a desktop shortcut by running:
 

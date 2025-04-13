@@ -25,7 +25,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Launch the Delphi Trading Intelligence Dashboard")
 
     # Dashboard options
-    parser.add_argument("--port", type=int, default=6000, help="Port to run the dashboard on")
+    parser.add_argument("--port", type=int, default=3000, help="Port to run the dashboard on")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to run the dashboard on")
     parser.add_argument("--browser", action="store_true", help="Open dashboard in browser")
     parser.add_argument("--debug", action="store_true", help="Run Flask in debug mode")

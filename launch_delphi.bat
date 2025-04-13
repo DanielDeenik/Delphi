@@ -44,9 +44,15 @@ if not exist config\config.json (
 } > config\config.json
 )
 
-echo [2/4] Starting Delphi application on port 6000...
+echo [2/4] Starting Delphi application on port 3000...
 REM Start the Flask application in the background
-start /B python -m trading_ai.cli.dashboard_cli --port 6000 > logs\app_%date:~-4,4%%date:~-7,2%%date:~-10,2%.log 2>&1
+start /B python -m trading_ai.cli.dashboard_cli --port 3000 > logs\app_%date:~-4,4%%date:~-7,2%%date:~-10,2%.log 2>&1
+
+REM Check if the application started successfully
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to start the application. Check the logs for details.
+    goto :end
+)
 
 echo [3/4] Waiting for application to start...
 REM Wait for the application to start
@@ -54,14 +60,18 @@ timeout /t 5 > nul
 
 echo [4/4] Opening browser...
 REM Open the browser to the multi-tab Colab view
-start http://localhost:6000/colab/all
+REM Try to open the browser, but don't fail if it doesn't work
+start "" http://localhost:3000/colab/all 2>nul || (
+    echo [WARNING] Could not open browser automatically.
+    echo [WARNING] Please open http://localhost:3000/colab/all manually in your browser.
+)
 
 echo.
 echo ======================================================
 echo    Delphi Trading Intelligence System is running
-echo    Dashboard URL: http://localhost:6000
-echo    Notebooks URL: http://localhost:6000/colab
-echo    All Notebooks: http://localhost:6000/colab/all
+echo    Dashboard URL: http://localhost:3000
+echo    Notebooks URL: http://localhost:3000/colab
+echo    All Notebooks: http://localhost:3000/colab/all
 echo ======================================================
 echo.
 echo Press Ctrl+C to stop the application

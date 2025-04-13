@@ -32,7 +32,7 @@ if [ ! -f "config/config.json" ]; then
     "dataset": "stock_data"
   },
   "tickers": [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", 
+    "AAPL", "MSFT", "GOOGL", "AMZN", "META",
     "TSLA", "NVDA", "JPM", "V", "JNJ",
     "WMT", "PG", "MA", "UNH", "HD",
     "BAC", "PFE", "CSCO", "DIS", "VZ"
@@ -41,9 +41,9 @@ if [ ! -f "config/config.json" ]; then
 EOL
 fi
 
-echo "[2/4] Starting Delphi application on port 6000..."
+echo "[2/4] Starting Delphi application on port 3000..."
 # Start the Flask application in the background
-python -m trading_ai.cli.dashboard_cli --port 6000 > logs/app_$(date +%Y%m%d).log 2>&1 &
+python -m trading_ai.cli.dashboard_cli --port 3000 > logs/app_$(date +%Y%m%d).log 2>&1 &
 APP_PID=$!
 
 # Save the PID to a file for later cleanup
@@ -57,18 +57,28 @@ echo "[4/4] Opening browser..."
 # Open the browser to the multi-tab Colab view
 if [ "$(uname)" == "Darwin" ]; then
     # macOS
-    open http://localhost:6000/colab/all
+    open http://localhost:3000/colab/all
 elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     # Linux
-    xdg-open http://localhost:6000/colab/all
+    if command -v xdg-open &> /dev/null; then
+        xdg-open http://localhost:3000/colab/all
+    elif command -v gnome-open &> /dev/null; then
+        gnome-open http://localhost:3000/colab/all
+    elif command -v sensible-browser &> /dev/null; then
+        sensible-browser http://localhost:3000/colab/all
+    else
+        echo "[WARNING] Could not detect a browser opener. Please open http://localhost:3000/colab/all manually."
+    fi
+else
+    echo "[WARNING] Unknown operating system. Please open http://localhost:3000/colab/all manually."
 fi
 
 echo
 echo "======================================================"
 echo "   Delphi Trading Intelligence System is running"
-echo "   Dashboard URL: http://localhost:6000"
-echo "   Notebooks URL: http://localhost:6000/colab"
-echo "   All Notebooks: http://localhost:6000/colab/all"
+echo "   Dashboard URL: http://localhost:3000"
+echo "   Notebooks URL: http://localhost:3000/colab"
+echo "   All Notebooks: http://localhost:3000/colab/all"
 echo "======================================================"
 echo
 echo "Press Ctrl+C to stop the application"

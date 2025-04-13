@@ -50,11 +50,11 @@ The web dashboard includes a dedicated page for accessing notebooks:
    python -m trading_ai.cli.dashboard_cli
    ```
 
-2. Open your browser and navigate to `http://localhost:6000/colab`
+2. Open your browser and navigate to `http://localhost:3000/colab`
 
 3. Select a notebook from the list to view it
 
-4. To view all notebooks in tabs, click on "View All Notebooks" at the bottom of the list or navigate to `http://localhost:6000/colab/all`
+4. To view all notebooks in tabs, click on "View All Notebooks" at the bottom of the list or navigate to `http://localhost:3000/colab/all`
 
 ## Notebook Templates
 

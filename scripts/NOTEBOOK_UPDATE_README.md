@@ -89,9 +89,9 @@ To import data for all tickers:
 
 These scripts are designed to work with the Google Colab notebooks in the Delphi Trading Intelligence System. The notebooks are embedded in the web dashboard and can be accessed at:
 
-- Dashboard: http://localhost:6000
-- Analysis Notebooks: http://localhost:6000/colab
-- All Notebooks: http://localhost:6000/colab/all
+- Dashboard: http://localhost:3000
+- Analysis Notebooks: http://localhost:3000/colab
+- All Notebooks: http://localhost:3000/colab/all
 
 ## Troubleshooting
 
