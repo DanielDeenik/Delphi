@@ -137,21 +137,35 @@ delphi-dashboard --port 6000
 
 ### Launching the Application
 
-You can launch the application using the provided scripts:
+You can launch the application using the automatic launcher scripts:
 
 ```bash
 # Windows
-run_app.bat
+launch_delphi.bat
 
 # Unix/Linux/macOS
-./run_app.sh
+./launch_delphi.sh
 ```
 
-This will start the Flask application on port 6000 and open it in your browser. You can access the application at:
+This will:
+1. Set up the necessary environment
+2. Start the Flask application on port 6000
+3. Open the browser to the multi-tab Colab view
+
+You can access the application at:
 
 - Dashboard: http://localhost:6000
 - Analysis Notebooks: http://localhost:6000/colab
+- All Notebooks (21 tabs): http://localhost:6000/colab/all
 - API Documentation: http://localhost:6000/api/docs
+
+For Windows users, you can create a desktop shortcut by running:
+
+```batch
+create_desktop_shortcut.bat
+```
+
+For more information, see [LAUNCHER_README.md](LAUNCHER_README.md).
 
 ### Python API
 
