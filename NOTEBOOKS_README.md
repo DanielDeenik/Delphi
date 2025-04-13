@@ -50,9 +50,11 @@ The web dashboard includes a dedicated page for accessing notebooks:
    python -m trading_ai.cli.dashboard_cli
    ```
 
-2. Open your browser and navigate to `http://localhost:8080/colab`
+2. Open your browser and navigate to `http://localhost:6000/colab`
 
 3. Select a notebook from the list to view it
+
+4. To view all notebooks in tabs, click on "View All Notebooks" at the bottom of the list or navigate to `http://localhost:6000/colab/all`
 
 ## Notebook Templates
 
@@ -76,6 +78,7 @@ This file is automatically created and updated when you generate and upload note
 For convenience, the system includes batch scripts for common tasks:
 
 - `scripts/generate_notebooks.bat` (Windows) or `scripts/generate_notebooks.sh` (Unix): Generate and upload notebooks
+- `run_app_with_notebooks.bat` (Windows) or `run_app_with_notebooks.sh` (Unix): Launch the dashboard and open all notebooks in tabs
 
 ## Integration with Google Colab
 

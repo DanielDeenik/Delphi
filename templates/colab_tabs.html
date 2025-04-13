@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delphi Trading Intelligence - All Analysis Notebooks</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .tab-content {
+            height: 800px;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            padding: 15px;
+        }
+        .nav-tabs {
+            margin-bottom: 0;
+        }
+        .colab-wrapper {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .tab-pane {
+            height: 100%;
+        }
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 1.5rem;
+            color: #1E88E5;
+        }
+        .loading-spinner .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            margin-right: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <img src="https://img.icons8.com/color/48/000000/oracle-of-delphi.png" width="30" height="30" class="d-inline-block align-top" alt="">
+                Delphi Trading Intelligence
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Dashboard</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="/colab">Analysis Notebooks</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/api/docs">API</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <h1 class="main-header">All Analysis Notebooks</h1>
+        
+        <div class="row mb-2">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <strong>Note:</strong> This page will open all 21 notebooks in tabs. Each notebook will use your Google login credentials.
+                    <button id="load-all-btn" class="btn btn-primary btn-sm float-right">Load All Notebooks</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="notebookTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="master-tab" data-toggle="tab" href="#master" role="tab" aria-controls="master" aria-selected="true">Master</a>
+                    </li>
+                    {% for ticker in tickers %}
+                    <li class="nav-item">
+                        <a class="nav-link" id="{{ ticker }}-tab" data-toggle="tab" href="#{{ ticker }}" role="tab" aria-controls="{{ ticker }}" aria-selected="false">{{ ticker }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="tab-content" id="notebookTabContent">
+                    <div class="tab-pane fade show active" id="master" role="tabpanel" aria-labelledby="master-tab">
+                        <div class="loading-spinner" id="master-loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                            <span>Loading Master Notebook...</span>
+                        </div>
+                        <iframe class="colab-wrapper" id="master-frame" style="display: none;" data-src="{{ notebook_urls['master'] }}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    {% for ticker in tickers %}
+                    <div class="tab-pane fade" id="{{ ticker }}" role="tabpanel" aria-labelledby="{{ ticker }}-tab">
+                        <div class="loading-spinner" id="{{ ticker }}-loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                            <span>Loading {{ ticker }} Notebook...</span>
+                        </div>
+                        <iframe class="colab-wrapper" id="{{ ticker }}-frame" style="display: none;" data-src="{{ notebook_urls[ticker] }}" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Function to load a specific notebook
+            function loadNotebook(id) {
+                var frame = $('#' + id + '-frame');
+                var loading = $('#' + id + '-loading');
+                
+                if (frame.attr('src') === undefined) {
+                    frame.attr('src', frame.data('src'));
+                    frame.on('load', function() {
+                        loading.hide();
+                        frame.show();
+                    });
+                }
+            }
+            
+            // Load the active tab's notebook
+            loadNotebook('master');
+            
+            // Load notebook when tab is clicked
+            $('#notebookTabs a').on('click', function(e) {
+                e.preventDefault();
+                $(this).tab('show');
+                var id = $(this).attr('href').substring(1);
+                loadNotebook(id);
+            });
+            
+            // Load all notebooks button
+            $('#load-all-btn').on('click', function() {
+                // Load master notebook if not already loaded
+                loadNotebook('master');
+                
+                // Load all ticker notebooks
+                {% for ticker in tickers %}
+                loadNotebook('{{ ticker }}');
+                {% endfor %}
+                
+                $(this).prop('disabled', true).text('All Notebooks Loading...');
+            });
+        });
+    </script>
+</body>
+</html>

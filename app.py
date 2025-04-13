@@ -6,10 +6,7 @@ This is the main entry point for the Flask dashboard application with embedded G
 """
 import json
 import logging
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from flask import Flask, jsonify, request, Response
+from flask import Flask, jsonify, request, Response, render_template
 from pathlib import Path
 
 # Configure logging
@@ -110,6 +107,8 @@ def get_ticker_list():
 
 def load_ticker_data(ticker, days=90):
     """Load ticker data from BigQuery."""
+    import pandas as pd
+
     try:
         # Get data from BigQuery
         df = bigquery_storage.get_stock_prices(ticker, days=days)
@@ -128,6 +127,8 @@ def load_ticker_data(ticker, days=90):
 
 def calculate_metrics(df):
     """Calculate key metrics for a ticker."""
+    import numpy as np
+
     if df is None or df.empty:
         return {}
 
@@ -154,8 +155,9 @@ def calculate_metrics(df):
     volume_ratio = df['volume'].iloc[-1] / avg_volume
 
     # Calculate volatility (standard deviation of daily returns)
+    import numpy as np
     daily_returns = df['close'].pct_change().dropna()
-    volatility = daily_returns.std() * 100
+    volatility = daily_returns.std() * np.sqrt(252) * 100
 
     return {
         'latest_price': latest_price,
@@ -171,6 +173,8 @@ def calculate_metrics(df):
 
 def plot_price_chart(df, ticker):
     """Create a price chart with volume."""
+    import plotly.graph_objects as go
+
     if df is None or df.empty:
         return None
 
@@ -220,6 +224,8 @@ def plot_price_chart(df, ticker):
 
 def plot_volume_analysis(df, ticker):
     """Create a volume analysis chart."""
+    import plotly.graph_objects as go
+
     if df is None or df.empty:
         return None
 
@@ -591,6 +597,22 @@ def index():
 
     return html
 
+@app.route('/colab/all')
+def colab_all():
+    """View all Google Colab notebooks in tabs."""
+    # Get available tickers
+    tickers = get_ticker_list()
+
+    # Get all notebook URLs
+    notebook_urls = {}
+    notebook_urls['master'] = notebook_config.get_notebook_url('master')
+
+    for ticker in tickers:
+        notebook_urls[ticker] = notebook_config.get_notebook_url(ticker)
+
+    # Render the template
+    return render_template('colab_tabs.html', tickers=tickers, notebook_urls=notebook_urls)
+
 @app.route('/colab')
 @app.route('/colab/<ticker>')
 def colab(ticker=None):
@@ -619,6 +641,9 @@ def colab(ticker=None):
         notebook_title = f'{ticker} Volume Inefficiency Analysis'
         colab_url = notebook_config.get_notebook_url(ticker)
 
+    # Add link to all notebooks view
+    ticker_links += f'<a href="/colab/all" class="list-group-item list-group-item-action list-group-item-primary mt-3">View All Notebooks</a>'
+
     # Render template
     html = colab_template.format(
         custom_css=custom_css,
@@ -629,6 +654,8 @@ def colab(ticker=None):
     )
 
     return html
+
+
 
 @app.route('/api/data/<ticker>')
 def get_data(ticker):
